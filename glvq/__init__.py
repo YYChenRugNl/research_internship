@@ -13,5 +13,5 @@ import matplotlib
 
 matplotlib.use('Agg')
 
-__all__ = ['GlvqModel', 'GrlvqModel', 'GmlvqModel', 'LgmlvqModel','plot2d']
+__all__ = ['GlvqModel', 'GrlvqModel', 'GmlvqModel', 'LgmlvqModel','plot2d','CustomTool']
 __version__ = '1.0'
