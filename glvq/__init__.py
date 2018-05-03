@@ -8,7 +8,9 @@ from .glvq import GlvqModel
 from .grlvq import GrlvqModel
 from .gmlvq import GmlvqModel
 from .lgmlvq import LgmlvqModel
+from .ogmlvq import OGmlvqModel
 from .plot_2d import plot2d
+from .tools import CustomTool
 import matplotlib
 
 matplotlib.use('Agg')
