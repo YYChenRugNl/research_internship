@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import csv
 
-from glvq import GmlvqModel, plot2d, tools
+from glvq import GmlvqModel, OGmlvqModel, plot2d, tools
 
 print(__doc__)
 
@@ -45,7 +45,8 @@ run_flag = True
 print('GMLVQ:')
 
 if run_flag:
-    gmlvq = GmlvqModel()
+    # gmlvq = GmlvqModel()
+    gmlvq = OGmlvqModel()
     gmlvq.fit(toy_data, toy_label)
     plot2d(gmlvq, toy_data, toy_label, 1, 'gmlvq')
     print('classification accuracy:', gmlvq.score(toy_data, toy_label))
