@@ -39,11 +39,11 @@ class CustomTool():
 
         if if_normalize:
             mean0 = toy_data[:, 0].mean()
-            std0 = toy_data[:, 0].std()/2
+            std0 = toy_data[:, 0].std()
             toy_data[:, 0] = (toy_data[:, 0] - mean0) / std0
 
             mean1 = toy_data[:, 1].mean()
-            std1 = toy_data[:, 1].std()/2
+            std1 = toy_data[:, 1].std()
             toy_data[:, 1] = (toy_data[:, 1] - mean1) / std1
 
         return toy_data, toy_label
