@@ -24,7 +24,7 @@ class CustomTool():
         # print(labels)
         return attr, labels[:, 0]
 
-    def artificial_data(self, sample_size, list_center, list_matrix):
+    def artificial_data(self, sample_size, list_center, list_matrix, if_normalize=False):
         nb_ppc = sample_size
         toy_label = np.zeros(nb_ppc)
         toy_data = np.random.multivariate_normal(list_center[0], np.array(list_matrix[0]), size=nb_ppc)
@@ -36,5 +36,14 @@ class CustomTool():
                 toy_data = np.append(toy_data,
                                      np.random.multivariate_normal(list_center[index], np.array(list_matrix[index]),
                                                                    size=nb_ppc), axis=0)
+
+        if if_normalize:
+            mean0 = toy_data[:, 0].mean()
+            std0 = toy_data[:, 0].std()/2
+            toy_data[:, 0] = (toy_data[:, 0] - mean0) / std0
+
+            mean1 = toy_data[:, 1].mean()
+            std1 = toy_data[:, 1].std()/2
+            toy_data[:, 1] = (toy_data[:, 1] - mean1) / std1
 
         return toy_data, toy_label
