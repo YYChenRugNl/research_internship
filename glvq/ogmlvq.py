@@ -130,9 +130,8 @@ class OGmlvqModel(GlvqModel):
             if lr_relevances > 0:
                 difc = training_data[idxc] - variables[i]
                 difw = training_data[idxw] - variables[i]
-                gw = gw - np.dot(difw * dcd[np.newaxis].T, omega_t).T \
-                    .dot(difw) + np.dot(difc * dwd[np.newaxis].T,
-                                        omega_t).T.dot(difc)
+                gw = gw - np.dot(difw * dcd[np.newaxis].T, omega_t).T.dot(difw) \
+                     + np.dot(difc * dwd[np.newaxis].T, omega_t).T.dot(difc)
                 if lr_prototypes > 0:
                     g[i] = dcd.dot(difw) - dwd.dot(difc)
             elif lr_prototypes > 0:
@@ -143,11 +142,9 @@ class OGmlvqModel(GlvqModel):
         if self.regularization:
             f3 = np.linalg.pinv(omega_t.conj().T).conj().T
         if lr_relevances > 0:
-            g[nb_prototypes:] = 2 / n_data \
-                                * lr_relevances * gw - self.regularization * f3
+            g[nb_prototypes:] = 2 / n_data * lr_relevances * gw - self.regularization * f3
         if lr_prototypes > 0:
-            g[:nb_prototypes] = 1 / n_data * lr_prototypes \
-                                * g[:nb_prototypes].dot(omega_t.dot(omega_t.T))
+            g[:nb_prototypes] = 1 / n_data * lr_prototypes * g[:nb_prototypes].dot(omega_t.dot(omega_t.T))
         g = g * (1 + 0.0001 * random_state.rand(*g.shape) - 0.5)
         return g.ravel()
 
@@ -159,6 +156,8 @@ class OGmlvqModel(GlvqModel):
 
         dist = _squared_euclidean(training_data.dot(omega_t),
                                   variables[:nb_prototypes].dot(omega_t))
+
+        # modify here
         d_wrong = dist.copy()
         d_wrong[label_equals_prototype] = np.inf
         distwrong = d_wrong.min(1)

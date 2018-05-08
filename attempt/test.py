@@ -46,7 +46,7 @@ print('GMLVQ:')
 
 if run_flag:
     # gmlvq = GmlvqModel()
-    gmlvq = OGmlvqModel()
+    gmlvq = OGmlvqModel(2)
     gmlvq.fit(toy_data, toy_label)
     plot2d(gmlvq, toy_data, toy_label, 1, 'gmlvq')
     print('classification accuracy:', gmlvq.score(toy_data, toy_label))
