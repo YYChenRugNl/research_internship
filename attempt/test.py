@@ -2,14 +2,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import csv
 
-from glvq import GmlvqModel, OGmlvqModel, plot2d, tools
+from glvq import OGmlvqModel, plot2d, CustomTool, GmlvqModel
 
 print(__doc__)
 
 datapath = '../benchmark_datasets/Abalone/abalone.data'
 # datapath = '../benchmark_datasets/Bank/Bank32nh/bank32nh.data'
 domainpath = '../benchmark_datasets/Abalone/abalone.domain'
-tools = tools.CustomTool()
+tools = CustomTool()
 toy_data, toy_label = tools.read_from_file(datapath, 0)
 # toy_data, toy_label = tools.read_from_file2(datapath)
 # toy_label[toy_label > 0.666] = 2
@@ -42,12 +42,14 @@ print(toy_label)
 run_flag = True
 # run_flag = False
 
-print('GMLVQ:')
+print('OGMLVQ:')
 
 if run_flag:
-    # gmlvq = GmlvqModel()
-    gmlvq = OGmlvqModel(2)
+    ogmlvq = OGmlvqModel()
+    ogmlvq.fit(toy_data, toy_label)
+    # plot2d(gmlvq, toy_data, toy_label, 1, 'ogmlvq')
+    print('classification accuracy:', ogmlvq.score(toy_data, toy_label))
+    # plt.show()
+    gmlvq = GmlvqModel()
     gmlvq.fit(toy_data, toy_label)
-    plot2d(gmlvq, toy_data, toy_label, 1, 'gmlvq')
     print('classification accuracy:', gmlvq.score(toy_data, toy_label))
-    plt.show()

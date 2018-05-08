@@ -12,7 +12,7 @@ from math import log
 import numpy as np
 from scipy.optimize import minimize
 
-from .glvq import _squared_euclidean, GlvqModel
+from .glvq import GlvqModel, _squared_euclidean
 from sklearn.utils import validation
 
 
@@ -95,6 +95,7 @@ class OGmlvqModel(GlvqModel):
         self.initial_matrix = initial_matrix
         self.initialdim = dim
 
+    # gradient descent
     def _optgrad(self, variables, training_data, label_equals_prototype,
                  random_state, lr_relevances=0, lr_prototypes=1):
         n_data, n_dim = training_data.shape
@@ -124,14 +125,16 @@ class OGmlvqModel(GlvqModel):
         for i in range(nb_prototypes):
             idxc = i == pidxcorrect
             idxw = i == pidxwrong
-
-            dcd = distcorrect[idxw] * distcorrectpluswrong[idxw]
-            dwd = distwrong[idxc] * distcorrectpluswrong[idxc]
+            # dcd = distcorrect[idxw] * distcorrectpluswrong[idxw]
+            # dwd = distwrong[idxc] * distcorrectpluswrong[idxc]
+            dcd = distwrong[idxw] * distcorrectpluswrong[idxw]
+            dwd = distcorrect[idxc] * distcorrectpluswrong[idxc]
             if lr_relevances > 0:
                 difc = training_data[idxc] - variables[i]
                 difw = training_data[idxw] - variables[i]
-                gw = gw - np.dot(difw * dcd[np.newaxis].T, omega_t).T.dot(difw) \
-                     + np.dot(difc * dwd[np.newaxis].T, omega_t).T.dot(difc)
+                gw = gw - np.dot(difw * dcd[np.newaxis].T, omega_t).T \
+                    .dot(difw) + np.dot(difc * dwd[np.newaxis].T,
+                                        omega_t).T.dot(difc)
                 if lr_prototypes > 0:
                     g[i] = dcd.dot(difw) - dwd.dot(difc)
             elif lr_prototypes > 0:
@@ -142,12 +145,15 @@ class OGmlvqModel(GlvqModel):
         if self.regularization:
             f3 = np.linalg.pinv(omega_t.conj().T).conj().T
         if lr_relevances > 0:
-            g[nb_prototypes:] = 2 / n_data * lr_relevances * gw - self.regularization * f3
+            g[nb_prototypes:] = 2 / n_data \
+                                * lr_relevances * gw - self.regularization * f3
         if lr_prototypes > 0:
-            g[:nb_prototypes] = 1 / n_data * lr_prototypes * g[:nb_prototypes].dot(omega_t.dot(omega_t.T))
+            g[:nb_prototypes] = 1 / n_data * lr_prototypes \
+                                * g[:nb_prototypes].dot(omega_t.dot(omega_t.T))
         g = g * (1 + 0.0001 * random_state.rand(*g.shape) - 0.5)
         return g.ravel()
 
+    # cost function
     def _optfun(self, variables, training_data, label_equals_prototype):
         n_data, n_dim = training_data.shape
         variables = variables.reshape(variables.size // n_dim, n_dim)
@@ -214,6 +220,9 @@ class OGmlvqModel(GlvqModel):
             options={'disp': self.display, 'gtol': self.gtol,
                      'maxiter': self.max_iter})
         n_iter = res.nit
+
+        print(res.nit)
+
         res = minimize(
             fun=lambda vs:
             self._optfun(vs, x, label_equals_prototype=label_equals_prototype),
@@ -225,6 +234,9 @@ class OGmlvqModel(GlvqModel):
             options={'disp': self.display, 'gtol': self.gtol,
                      'maxiter': self.max_iter})
         n_iter = max(n_iter, res.nit)
+
+        print(res.nit)
+
         res = minimize(
             fun=lambda vs:
             self._optfun(vs, x, label_equals_prototype=label_equals_prototype),
@@ -236,6 +248,9 @@ class OGmlvqModel(GlvqModel):
             options={'disp': self.display, 'gtol': self.gtol,
                      'maxiter': self.max_iter})
         n_iter = max(n_iter, res.nit)
+
+        print(res.nit)
+
         out = res.x.reshape(res.x.size // nb_features, nb_features)
         self.w_ = out[:nb_prototypes]
         self.omega_ = out[nb_prototypes:]
