@@ -77,12 +77,6 @@ class OGmlvqModel(GlvqModel):
         list_dist = _squared_euclidean(data_point.dot(self.omega_.T), self.w_.dot(self.omega_.T)).flatten()
         # print(list_dist)
 
-        # print(list_dist, label, self.c_w_)
-        # correct kernel class
-        correct_idx0 = label * self.prototypes_per_class
-        correct_idx1 = correct_idx0 + self.prototypes_per_class
-        # print(list_dist[correct_idx0:correct_idx1])
-
         self.ranking_list
         correct_cls_min = label - k_size
         correct_cls_max = label + k_size
@@ -98,7 +92,17 @@ class OGmlvqModel(GlvqModel):
         # all classes with True and False
         class_list = np.zeros((len(self.c_w_)//self.prototypes_per_class), dtype=bool)
         class_list[correct_ranking] = True
-        D = list_dist[np.invert(class_list)].mean()
+
+        # print(list_dist, label, self.c_w_)
+        # correct kernel class
+        correct_idx0 = correct_cls_min * self.prototypes_per_class
+        correct_idx1 = correct_cls_max * self.prototypes_per_class + self.prototypes_per_class
+        proto_correct_list = np.array(list(range(int(correct_idx0), int(correct_idx1))))
+
+        prototype_list = np.zeros((len(self.c_w_)), dtype=bool)
+        prototype_list[proto_correct_list] = True
+
+        D = list_dist[np.invert(prototype_list)].mean()
         # print(class_list)
 
         # collection set of closest prototype from each correct class
