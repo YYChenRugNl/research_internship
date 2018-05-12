@@ -88,7 +88,7 @@ class OGmlvqModel(GlvqModel):
     # ptype_id = np.array([0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5])
     # prototypes_per_class = 2
     gaussian_sd = 0.5
-    gaussian_sd_wrong = 0.2
+    gaussian_sd_wrong = 0.5
     kernel_size = 1
     # omega_ = np.eye(2)
     # W_ = np.array([[1.1, 9.5], [2.1, 9.8], [20, 20], [32, -1.7], [0.5, -2.5], [9.8, -3.4], [-9.4, -3.6]
@@ -108,7 +108,7 @@ class OGmlvqModel(GlvqModel):
         self.gtol = gtol
 
     def find_prototype(self, data_point, label, k_size):
-        list_dist = _squared_euclidean(data_point.dot(self.omega_.T), self.w_.dot(self.omega_.T)).flatten()
+        list_dist = np.sqrt(_squared_euclidean(data_point.dot(self.omega_.T), self.w_.dot(self.omega_.T))).flatten()
         # print(list_dist)
 
         self.ranking_list
@@ -195,9 +195,11 @@ class OGmlvqModel(GlvqModel):
             pid_wrong = closest_wro_p[0]
             # print(self.w_)
             # print(self.omega_)
+            self.delta_all_prototypes[pid_correct] = self.delta_all_prototypes[pid_correct] - delta_correct_prot * lr_pt
+            self.delta_all_prototypes[pid_wrong] = self.delta_all_prototypes[pid_wrong] - delta_correct_prot * lr_pt
             self.w_[pid_correct] = self.w_[pid_correct] - delta_correct_prot * lr_pt
             self.w_[pid_wrong] = self.w_[pid_wrong] - delta_wrong_prot * lr_pt
-            self.omega_ = self.omega_ + delta_omega * lr_om
+            self.omega_ = self.omega_ - delta_omega * lr_om
             # print(self.w_)
             # print(self.omega_)
 
@@ -211,6 +213,10 @@ class OGmlvqModel(GlvqModel):
         gamma_plus = 2*alpha_distance_minus / pow((alpha_distance_plus + alpha_distance_minus), 2)
         gamma_minus = -2*alpha_distance_plus / pow((alpha_distance_plus + alpha_distance_minus), 2)
 
+        sum_dis_plus_minus_sqr = (alpha_distance_plus + alpha_distance_minus) * (alpha_distance_plus + alpha_distance_minus)
+        mu_plus = 2 * alpha_plus * alpha_distance_minus / sum_dis_plus_minus_sqr
+        mu_minus = 2 * alpha_minus * alpha_distance_plus / sum_dis_plus_minus_sqr
+
         pid_correct = pt_pair[0][0]
         pid_wrong = pt_pair[1][0]
         diff_correct = datapoint - self.w_[pid_correct]
@@ -222,18 +228,19 @@ class OGmlvqModel(GlvqModel):
         diff_mtx_wrong = diff_wrong.T.dot(diff_wrong)
         delta_omega_minus = gamma_minus * 2 * alpha_minus * self.omega_.dot(diff_mtx_wrong)
 
-        delta_omega = delta_omega_plus + delta_omega_minus
-        # print("delta_omega:", delta_omega)
+        # delta_omega = delta_omega_plus + delta_omega_minus
+        delta_omega = 2 * mu_plus * self.omega_.dot(diff_mtx_correct) - 2 * mu_minus * self.omega_.dot(diff_mtx_wrong)
 
-        delta_correct_prot = gamma_plus * (-2*alpha_plus*diff_correct.dot(self.omega_.T.dot(self.omega_)))
-        delta_wrong_prot = gamma_minus * (-2*alpha_minus*diff_wrong.dot(self.omega_.T.dot(self.omega_)))
-        # print("delta:", delta_correct_prot, delta_wrong_prot)
+        # delta_correct_prot = gamma_plus * (-2*alpha_plus*diff_correct.dot(self.omega_.T.dot(self.omega_)))
+        delta_correct_prot = -2 * mu_plus * diff_correct.dot(self.omega_.T.dot(self.omega_))
+        # delta_wrong_prot = gamma_minus * (-2*alpha_minus*diff_wrong.dot(self.omega_.T.dot(self.omega_)))
+        delta_wrong_prot = 2 * mu_minus * diff_wrong.dot(self.omega_.T.dot(self.omega_))
 
         return delta_correct_prot, delta_wrong_prot, delta_omega
 
     def alpha_dist_plus(self, pt_pair, label):
         distance_correct = pt_pair[0][1]
-        ranking_diff_correct = abs(label - pt_pair[0][0] // self.prototypes_per_class)
+        ranking_diff_correct = abs(label - (pt_pair[0][0] // self.prototypes_per_class))
 
         alpha_plus = math.exp(- pow(ranking_diff_correct, 2) / (2 * pow(self.gaussian_sd, 2)))
 
@@ -243,7 +250,7 @@ class OGmlvqModel(GlvqModel):
 
     def alpha_dist_minus(self, pt_pair, label, max_error_cls, D):
         distance_wrong = pt_pair[1][1]
-        ranking_diff_wrong = abs(label - pt_pair[1][0] // self.prototypes_per_class)
+        ranking_diff_wrong = abs(label - (pt_pair[1][0] // self.prototypes_per_class))
 
         alpha_minus = math.exp(- pow(max_error_cls - ranking_diff_wrong, 2) / (2 * pow(self.gaussian_sd, 2))) \
                       * \
@@ -317,12 +324,16 @@ class OGmlvqModel(GlvqModel):
 
 
         # start the algorithm
+        nb_samples, nb_features = x.shape
         stop_flag = False
         epoch_index = 0
         max_epoch = 100
         cost_list = np.zeros([max_epoch, 1])
-        lr_pt = 0.1
+        lr_pt = 0.2
         lr_om = 0.05
+        print("LR: ", lr_pt, lr_om)
+        self.delta_all_prototypes = np.zeros([len(self.w_), nb_features])
+
         while not stop_flag:
             for index in range(len(x)):
                 datapoint = np.array([x[index]])
@@ -342,12 +353,15 @@ class OGmlvqModel(GlvqModel):
 
             cost_list[epoch_index] = sum_cost
             epoch_index += 1
+            print(self.delta_all_prototypes)
             if epoch_index >= max_epoch:
                 stop_flag = True
-                print(cost_list)
+                print(self.omega_)
+                print("LR: ", lr_pt, lr_om)
+                # print(cost_list)
 
-            lr_pt = lr_pt / (1 + self.gtol * (epoch_index - 1))
-            lr_om = lr_om / (1 + self.gtol * (epoch_index - 1))
+            lr_pt = lr_pt / (1 + 0.001 * (epoch_index - 1))
+            lr_om = lr_om / (1 + 0.001 * (epoch_index - 1))
 
 
 
