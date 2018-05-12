@@ -87,8 +87,8 @@ class OGmlvqModel(GlvqModel):
 
     # ptype_id = np.array([0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5])
     # prototypes_per_class = 2
-    gaussian_sd = 0.5
-    gaussian_sd_wrong = 0.5
+    gaussian_sd = 0.1
+    gaussian_sd_wrong = 0.1
     kernel_size = 1
     # omega_ = np.eye(2)
     # W_ = np.array([[1.1, 9.5], [2.1, 9.8], [20, 20], [32, -1.7], [0.5, -2.5], [9.8, -3.4], [-9.4, -3.6]
@@ -193,15 +193,12 @@ class OGmlvqModel(GlvqModel):
 
             pid_correct = closest_cor_p[0]
             pid_wrong = closest_wro_p[0]
-            # print(self.w_)
-            # print(self.omega_)
             self.delta_all_prototypes[pid_correct] = self.delta_all_prototypes[pid_correct] - delta_correct_prot * lr_pt
             self.delta_all_prototypes[pid_wrong] = self.delta_all_prototypes[pid_wrong] - delta_correct_prot * lr_pt
-            self.w_[pid_correct] = self.w_[pid_correct] - delta_correct_prot * lr_pt
-            self.w_[pid_wrong] = self.w_[pid_wrong] - delta_wrong_prot * lr_pt
-            self.omega_ = self.omega_ - delta_omega * lr_om
-            # print(self.w_)
-            # print(self.omega_)
+            # self.w_[pid_correct] = self.w_[pid_correct] - delta_correct_prot * lr_pt
+            # self.w_[pid_wrong] = self.w_[pid_wrong] - delta_wrong_prot * lr_pt
+            self.delta_all_omega = self.delta_all_omega - delta_omega * lr_om
+            # self.omega_ = self.omega_ - delta_omega * lr_om
 
     # calculate derivatives of prototypes a, b and omega
     def _derivatives(self, pt_pair, label, max_error_cls, datapoint, D):
@@ -295,6 +292,36 @@ class OGmlvqModel(GlvqModel):
 
         return sum_cost
 
+    def opt_gradient(self, vs, x, y):
+        # start the algorithm
+        nb_samples, nb_features = x.shape
+        omega0, omega1 = self.omega_.shape
+        lr_pt = 0.2
+        lr_om = 0.05
+
+        # initialization for batch
+        self.delta_all_prototypes = np.zeros([len(self.w_), nb_features])
+        self.delta_all_omega = np.zeros([omega0, omega1])
+
+        for index in range(len(x)):
+            datapoint = np.array([x[index]])
+            label = y[index]
+            W_plus, W_minus, max_error_cls, D = self.find_prototype(datapoint, label, self.kernel_size)
+            self.update_prot_and_omega(W_plus, W_minus, label, max_error_cls, datapoint, lr_pt, lr_om, D)
+
+        g_p = self.delta_all_prototypes.copy()
+        g_o = self.delta_all_omega.copy()
+        g = np.append(g_p, g_o)
+        return g.ravel()
+
+    def opt_cost(self, vs, x, y):
+        sum_cost = 0
+        for index in range(len(x)):
+            datapoint = np.array([x[index]])
+            label = y[index]
+            sum_cost += self._costfunc(datapoint, label, self.kernel_size)
+        return sum_cost
+
     def _optimize(self, x, y, random_state):
         if not isinstance(self.regularization, float) or self.regularization < 0:
             raise ValueError("regularization must be a positive float ")
@@ -323,45 +350,74 @@ class OGmlvqModel(GlvqModel):
                     "expected=%d" % (self.omega_.shape[1], nb_features))
 
 
-        # start the algorithm
-        nb_samples, nb_features = x.shape
-        stop_flag = False
-        epoch_index = 0
-        max_epoch = 100
-        cost_list = np.zeros([max_epoch, 1])
-        lr_pt = 0.2
-        lr_om = 0.05
-        print("LR: ", lr_pt, lr_om)
-        self.delta_all_prototypes = np.zeros([len(self.w_), nb_features])
+        variables = np.append(self.w_, self.omega_, axis=0)
+        # label_equals_prototype = y[np.newaxis].T == self.c_w_
+        method = 'l-bfgs-b'
+        res = minimize(
+            fun=lambda vs:
+            self.opt_cost(vs, x, y),
+            jac=lambda vs:
+            self.opt_gradient(vs, x, y),
+            method=method, x0=variables,
+            options={'disp': self.display, 'gtol': self.gtol,
+                     'maxiter': self.max_iter})
+        n_iter = res.nit
+        print(n_iter)
+        out = res.x.reshape(res.x.size // nb_features, nb_features)
+        self.w_ = out[:nb_prototypes]
+        self.omega_ = out[nb_prototypes:]
+        self.omega_ /= math.sqrt(
+            np.sum(np.diag(self.omega_.T.dot(self.omega_))))
+        self.n_iter_ = n_iter
 
-        while not stop_flag:
-            for index in range(len(x)):
-                datapoint = np.array([x[index]])
-                label = y[index]
-                W_plus, W_minus, max_error_cls, D = self.find_prototype(datapoint, label, self.kernel_size)
-                self.update_prot_and_omega(W_plus, W_minus, label, max_error_cls, datapoint, lr_pt, lr_om, D)
 
-                # normalize the omega
-                self.omega_ /= math.sqrt(
-                    np.sum(np.diag(self.omega_.T.dot(self.omega_))))
-
-            sum_cost = 0
-            for index in range(len(x)):
-                datapoint = np.array([x[index]])
-                label = y[index]
-                sum_cost += self._costfunc(datapoint, label, self.kernel_size)
-
-            cost_list[epoch_index] = sum_cost
-            epoch_index += 1
-            print(self.delta_all_prototypes)
-            if epoch_index >= max_epoch:
-                stop_flag = True
-                print(self.omega_)
-                print("LR: ", lr_pt, lr_om)
-                # print(cost_list)
-
-            lr_pt = lr_pt / (1 + 0.001 * (epoch_index - 1))
-            lr_om = lr_om / (1 + 0.001 * (epoch_index - 1))
+        # # start the algorithm
+        # nb_samples, nb_features = x.shape
+        # omega0, omega1 = self.omega_.shape
+        # stop_flag = False
+        # epoch_index = 0
+        # max_epoch = 100
+        # cost_list = np.zeros([max_epoch, 1])
+        # lr_pt = 0.2
+        # lr_om = 0.05
+        #
+        # while not stop_flag:
+            # initialization for batch
+            # self.delta_all_prototypes = np.zeros([len(self.w_), nb_features])
+            # self.delta_all_omega = np.zeros([omega0, omega1])
+            #
+            # for index in range(len(x)):
+            #     datapoint = np.array([x[index]])
+            #     label = y[index]
+            #     W_plus, W_minus, max_error_cls, D = self.find_prototype(datapoint, label, self.kernel_size)
+            #     self.update_prot_and_omega(W_plus, W_minus, label, max_error_cls, datapoint, lr_pt, lr_om, D)
+            #
+            #     # normalize the omega
+            #     # self.omega_ /= math.sqrt(
+            #     #     np.sum(np.diag(self.omega_.T.dot(self.omega_))))
+            #
+            #
+            # self.w_ = self.w_ + self.delta_all_prototypes
+            # self.omega_ = self.omega_ + self.delta_all_omega
+            # # normalize for batch
+            # self.omega_ /= math.sqrt(
+            #     np.sum(np.diag(self.omega_.T.dot(self.omega_))))
+            #
+            # sum_cost = 0
+            # for index in range(len(x)):
+            #     datapoint = np.array([x[index]])
+            #     label = y[index]
+            #     sum_cost += self._costfunc(datapoint, label, self.kernel_size)
+            #
+            # cost_list[epoch_index] = sum_cost
+            # epoch_index += 1
+            # if epoch_index >= max_epoch:
+            #     stop_flag = True
+            #     print("LR: ", lr_pt, lr_om)
+            #     print(cost_list)
+            #
+            # lr_pt = lr_pt / (1 + 0.0001 * (epoch_index - 1))
+            # lr_om = lr_om / (1 + 0.0001 * (epoch_index - 1))
 
 
 
