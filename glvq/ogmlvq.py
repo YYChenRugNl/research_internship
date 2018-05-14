@@ -11,6 +11,7 @@ from math import log
 
 import numpy as np
 from scipy.optimize import minimize
+import random
 
 from .glvq import GlvqModel, _squared_euclidean
 from sklearn.utils import validation
@@ -87,8 +88,8 @@ class OGmlvqModel(GlvqModel):
 
     # ptype_id = np.array([0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5])
     # prototypes_per_class = 2
-    gaussian_sd = 0.1
-    gaussian_sd_wrong = 0.1
+    gaussian_sd = 1
+    gaussian_sd_wrong = 1
     kernel_size = 1
     # omega_ = np.eye(2)
     # W_ = np.array([[1.1, 9.5], [2.1, 9.8], [20, 20], [32, -1.7], [0.5, -2.5], [9.8, -3.4], [-9.4, -3.6]
@@ -97,7 +98,7 @@ class OGmlvqModel(GlvqModel):
     def __init__(self, prototypes_per_class=1, kernel_size=1, initial_prototypes=None,
                  initial_matrix=None, regularization=0.0,
                  dim=None, max_iter=2500, gtol=1e-5, display=False,
-                 random_state=None):
+                 random_state=None, lr_prototype=0.1, lr_omega=0.05):
         super(OGmlvqModel, self).__init__(prototypes_per_class,
                                          initial_prototypes, max_iter, gtol,
                                          display, random_state)
@@ -106,12 +107,19 @@ class OGmlvqModel(GlvqModel):
         self.initialdim = dim
         self.kernel_size = kernel_size
         self.gtol = gtol
+        self.lr_prototype = lr_prototype
+        self.lr_omega = lr_omega
 
     def find_prototype(self, data_point, label, k_size):
-        list_dist = np.sqrt(_squared_euclidean(data_point.dot(self.omega_.T), self.w_.dot(self.omega_.T))).flatten()
-        # print(list_dist)
+        list_square_dist = _squared_euclidean(data_point.dot(self.omega_.T), self.w_.dot(self.omega_.T)).flatten()
+        # list_square_dist = _squared_euclidean(data_point.dot(self.omega_), self.w_.dot(self.omega_)).flatten()
+        list_dist = np.sqrt(list_square_dist)
+        np.around(list_dist, decimals=5)
 
-        self.ranking_list
+        # list_square_dist2 = self._compute_distance(data_point, self.w_, self.omega_)
+        # list_dist2 = np.sqrt(list_square_dist2)
+        # print(list_dist2)
+
         correct_cls_min = label - k_size
         correct_cls_max = label + k_size
         if correct_cls_min < self.ranking_range[0]:
@@ -120,8 +128,6 @@ class OGmlvqModel(GlvqModel):
             correct_cls_max = self.ranking_range[1]
 
         correct_ranking = np.array(list(range(int(correct_cls_min), int(correct_cls_max) + 1)))
-        # print("correct_ranking: ", correct_ranking)
-        # print(self.ranking_list)
 
         # all classes with True and False
         class_list = np.zeros((len(self.c_w_)//self.prototypes_per_class), dtype=bool)
@@ -193,12 +199,13 @@ class OGmlvqModel(GlvqModel):
 
             pid_correct = closest_cor_p[0]
             pid_wrong = closest_wro_p[0]
-            self.delta_all_prototypes[pid_correct] = self.delta_all_prototypes[pid_correct] - delta_correct_prot * lr_pt
-            self.delta_all_prototypes[pid_wrong] = self.delta_all_prototypes[pid_wrong] - delta_correct_prot * lr_pt
-            # self.w_[pid_correct] = self.w_[pid_correct] - delta_correct_prot * lr_pt
-            # self.w_[pid_wrong] = self.w_[pid_wrong] - delta_wrong_prot * lr_pt
-            self.delta_all_omega = self.delta_all_omega - delta_omega * lr_om
-            # self.omega_ = self.omega_ - delta_omega * lr_om
+            # print(self.w_)
+            # print(self.omega_)
+            self.w_[pid_correct] = self.w_[pid_correct] + delta_correct_prot * lr_pt
+            self.w_[pid_wrong] = self.w_[pid_wrong] + delta_wrong_prot * lr_pt
+            self.omega_ = self.omega_ - delta_omega * lr_om
+            # print(self.w_)
+            # print(self.omega_)
 
     # calculate derivatives of prototypes a, b and omega
     def _derivatives(self, pt_pair, label, max_error_cls, datapoint, D):
@@ -210,14 +217,14 @@ class OGmlvqModel(GlvqModel):
         gamma_plus = 2*alpha_distance_minus / pow((alpha_distance_plus + alpha_distance_minus), 2)
         gamma_minus = -2*alpha_distance_plus / pow((alpha_distance_plus + alpha_distance_minus), 2)
 
-        sum_dis_plus_minus_sqr = (alpha_distance_plus + alpha_distance_minus) * (alpha_distance_plus + alpha_distance_minus)
-        mu_plus = 2 * alpha_plus * alpha_distance_minus / sum_dis_plus_minus_sqr
-        mu_minus = 2 * alpha_minus * alpha_distance_plus / sum_dis_plus_minus_sqr
-
         pid_correct = pt_pair[0][0]
         pid_wrong = pt_pair[1][0]
         diff_correct = datapoint - self.w_[pid_correct]
         diff_wrong = datapoint - self.w_[pid_wrong]
+
+        squared_sum_alpha_plus_minus = (pow((alpha_distance_plus+alpha_distance_minus), 2))
+        mu_plus = 2*alpha_distance_minus*alpha_plus/squared_sum_alpha_plus_minus
+        mu_minus = 2*(1-pt_pair[1][1]/(2*pow(self.gaussian_sd_wrong, 2)))*alpha_minus*alpha_distance_plus/squared_sum_alpha_plus_minus
 
         diff_mtx_correct = diff_correct.T.dot(diff_correct)
         delta_omega_plus = gamma_plus * 2 * alpha_plus * self.omega_.dot(diff_mtx_correct)
@@ -226,18 +233,22 @@ class OGmlvqModel(GlvqModel):
         delta_omega_minus = gamma_minus * 2 * alpha_minus * self.omega_.dot(diff_mtx_wrong)
 
         # delta_omega = delta_omega_plus + delta_omega_minus
-        delta_omega = 2 * mu_plus * self.omega_.dot(diff_mtx_correct) - 2 * mu_minus * self.omega_.dot(diff_mtx_wrong)
+        # print("delta_omega:", delta_omega)
+        delta_omega = 2 * mu_plus * self.omega_.dot(diff_mtx_correct) - 2*mu_minus*self.omega_.dot(diff_mtx_wrong)
 
         # delta_correct_prot = gamma_plus * (-2*alpha_plus*diff_correct.dot(self.omega_.T.dot(self.omega_)))
-        delta_correct_prot = -2 * mu_plus * diff_correct.dot(self.omega_.T.dot(self.omega_))
-        # delta_wrong_prot = gamma_minus * (-2*alpha_minus*diff_wrong.dot(self.omega_.T.dot(self.omega_)))
-        delta_wrong_prot = 2 * mu_minus * diff_wrong.dot(self.omega_.T.dot(self.omega_))
+        delta_correct_prot = 2*mu_plus * diff_correct.dot(self.omega_.T.dot(self.omega_))
+
+        # addition_term = -2*alpha_minus*(-1/(2*pow(self.gaussian_sd_wrong, 2))) * pt_pair[1][1] * diff_wrong.dot(self.omega_.T.dot(self.omega_))
+        # delta_wrong_prot = gamma_minus * (-2*alpha_minus*diff_wrong.dot(self.omega_.T.dot(self.omega_))+addition_term)
+        # print("delta:", delta_correct_prot, delta_wrong_prot)
+        delta_wrong_prot = -2*mu_minus*diff_wrong.dot(self.omega_.T.dot(self.omega_))
 
         return delta_correct_prot, delta_wrong_prot, delta_omega
 
     def alpha_dist_plus(self, pt_pair, label):
         distance_correct = pt_pair[0][1]
-        ranking_diff_correct = abs(label - (pt_pair[0][0] // self.prototypes_per_class))
+        ranking_diff_correct = abs(label - pt_pair[0][0] // self.prototypes_per_class)
 
         alpha_plus = math.exp(- pow(ranking_diff_correct, 2) / (2 * pow(self.gaussian_sd, 2)))
 
@@ -247,7 +258,7 @@ class OGmlvqModel(GlvqModel):
 
     def alpha_dist_minus(self, pt_pair, label, max_error_cls, D):
         distance_wrong = pt_pair[1][1]
-        ranking_diff_wrong = abs(label - (pt_pair[1][0] // self.prototypes_per_class))
+        ranking_diff_wrong = abs(label - pt_pair[1][0] // self.prototypes_per_class)
 
         alpha_minus = math.exp(- pow(max_error_cls - ranking_diff_wrong, 2) / (2 * pow(self.gaussian_sd, 2))) \
                       * \
@@ -261,6 +272,7 @@ class OGmlvqModel(GlvqModel):
         w_plus, w_minus, max_error_cls, D = self.find_prototype(data_point, label, k_size)
 
         sum_cost = 0
+        cost_count = 0
         while len(w_plus) > 0 and len(w_minus) > 0:
             min_value = np.inf
             min_ind_correct = 0
@@ -289,38 +301,9 @@ class OGmlvqModel(GlvqModel):
             alpha_distance_minus, alpha_minus = self.alpha_dist_minus(pt_pair, label, max_error_cls, D)
             mu = (alpha_distance_plus - alpha_distance_minus) / (alpha_distance_plus + alpha_distance_minus)
             sum_cost += mu
+            cost_count += 1
 
-        return sum_cost
-
-    def opt_gradient(self, vs, x, y):
-        # start the algorithm
-        nb_samples, nb_features = x.shape
-        omega0, omega1 = self.omega_.shape
-        lr_pt = 0.2
-        lr_om = 0.05
-
-        # initialization for batch
-        self.delta_all_prototypes = np.zeros([len(self.w_), nb_features])
-        self.delta_all_omega = np.zeros([omega0, omega1])
-
-        for index in range(len(x)):
-            datapoint = np.array([x[index]])
-            label = y[index]
-            W_plus, W_minus, max_error_cls, D = self.find_prototype(datapoint, label, self.kernel_size)
-            self.update_prot_and_omega(W_plus, W_minus, label, max_error_cls, datapoint, lr_pt, lr_om, D)
-
-        g_p = self.delta_all_prototypes.copy()
-        g_o = self.delta_all_omega.copy()
-        g = np.append(g_p, g_o)
-        return g.ravel()
-
-    def opt_cost(self, vs, x, y):
-        sum_cost = 0
-        for index in range(len(x)):
-            datapoint = np.array([x[index]])
-            label = y[index]
-            sum_cost += self._costfunc(datapoint, label, self.kernel_size)
-        return sum_cost
+        return sum_cost, cost_count
 
     def _optimize(self, x, y, random_state):
         if not isinstance(self.regularization, float) or self.regularization < 0:
@@ -349,77 +332,45 @@ class OGmlvqModel(GlvqModel):
                     "found=%d\n"
                     "expected=%d" % (self.omega_.shape[1], nb_features))
 
-
-        variables = np.append(self.w_, self.omega_, axis=0)
-        # label_equals_prototype = y[np.newaxis].T == self.c_w_
-        method = 'l-bfgs-b'
-        res = minimize(
-            fun=lambda vs:
-            self.opt_cost(vs, x, y),
-            jac=lambda vs:
-            self.opt_gradient(vs, x, y),
-            method=method, x0=variables,
-            options={'disp': self.display, 'gtol': self.gtol,
-                     'maxiter': self.max_iter})
-        n_iter = res.nit
-        print(n_iter)
-        out = res.x.reshape(res.x.size // nb_features, nb_features)
-        self.w_ = out[:nb_prototypes]
-        self.omega_ = out[nb_prototypes:]
-        self.omega_ /= math.sqrt(
-            np.sum(np.diag(self.omega_.T.dot(self.omega_))))
-        self.n_iter_ = n_iter
+        self.gaussian_sd = self.gaussian_sd * math.sqrt(nb_features)
 
 
-        # # start the algorithm
-        # nb_samples, nb_features = x.shape
-        # omega0, omega1 = self.omega_.shape
-        # stop_flag = False
-        # epoch_index = 0
-        # max_epoch = 100
-        # cost_list = np.zeros([max_epoch, 1])
-        # lr_pt = 0.2
-        # lr_om = 0.05
-        #
-        # while not stop_flag:
-            # initialization for batch
-            # self.delta_all_prototypes = np.zeros([len(self.w_), nb_features])
-            # self.delta_all_omega = np.zeros([omega0, omega1])
-            #
-            # for index in range(len(x)):
-            #     datapoint = np.array([x[index]])
-            #     label = y[index]
-            #     W_plus, W_minus, max_error_cls, D = self.find_prototype(datapoint, label, self.kernel_size)
-            #     self.update_prot_and_omega(W_plus, W_minus, label, max_error_cls, datapoint, lr_pt, lr_om, D)
-            #
-            #     # normalize the omega
-            #     # self.omega_ /= math.sqrt(
-            #     #     np.sum(np.diag(self.omega_.T.dot(self.omega_))))
-            #
-            #
-            # self.w_ = self.w_ + self.delta_all_prototypes
-            # self.omega_ = self.omega_ + self.delta_all_omega
-            # # normalize for batch
-            # self.omega_ /= math.sqrt(
-            #     np.sum(np.diag(self.omega_.T.dot(self.omega_))))
-            #
-            # sum_cost = 0
-            # for index in range(len(x)):
-            #     datapoint = np.array([x[index]])
-            #     label = y[index]
-            #     sum_cost += self._costfunc(datapoint, label, self.kernel_size)
-            #
-            # cost_list[epoch_index] = sum_cost
-            # epoch_index += 1
-            # if epoch_index >= max_epoch:
-            #     stop_flag = True
-            #     print("LR: ", lr_pt, lr_om)
-            #     print(cost_list)
-            #
-            # lr_pt = lr_pt / (1 + 0.0001 * (epoch_index - 1))
-            # lr_om = lr_om / (1 + 0.0001 * (epoch_index - 1))
+        # start the algorithm
+        stop_flag = False
+        epoch_index = 0
+        max_epoch = 100
+        cost_list = np.zeros([max_epoch, 1])
+        lr_pt = self.lr_prototype
+        lr_om = self.lr_omega
+        while not stop_flag:
 
+            for i in range(len(x)):
+                index = random.randrange(len(x))
+                datapoint = np.array([x[index]])
+                label = y[index]
+                W_plus, W_minus, max_error_cls, D = self.find_prototype(datapoint, label, self.kernel_size)
+                self.update_prot_and_omega(W_plus, W_minus, label, max_error_cls, datapoint, lr_pt, lr_om, D)
+                # normalize the omega
+                self.omega_ /= math.sqrt(
+                    np.sum(np.diag(self.omega_.T.dot(self.omega_))))
 
+            sum_cost = 0
+            cost_count = 0
+            for index in range(len(x)):
+                datapoint = np.array([x[index]])
+                label = y[index]
+                cost, count = self._costfunc(datapoint, label, self.kernel_size)
+                sum_cost += cost
+                cost_count += count
+
+            cost_list[epoch_index] = sum_cost/cost_count
+            epoch_index += 1
+            if epoch_index >= max_epoch:
+                stop_flag = True
+                print(cost_list)
+
+            lr_pt = lr_pt / (1 + self.gtol * (epoch_index - 1))
+            lr_om = lr_om / (1 + self.gtol * (epoch_index - 1))
 
         # variables = np.append(self.w_, self.omega_, axis=0)
         # label_equals_prototype = y[np.newaxis].T == self.c_w_
@@ -454,6 +405,21 @@ class OGmlvqModel(GlvqModel):
         for i in range(nb_prototypes):
             distance[i] = np.sum((x - w[i]).dot(omega.T) ** 2, 1)
         return distance.T
+
+    def score(self, x, y):
+        count = 0
+        for i in range(len(x)):
+            datapoint = np.array([x[i]])
+            distance_list = _squared_euclidean(datapoint.dot(self.omega_.T), self.w_.dot(self.omega_.T)).flatten()
+            min_ind = np.argmin(distance_list, axis=0)
+            predict_class = self.c_w_[min_ind]
+
+            if abs(predict_class - y[i]) <= self.kernel_size:
+                count += 1
+
+        accuracy = count/len(x)
+        # print("accuracy", accuracy)
+        return accuracy
 
     def project(self, x, dims, print_variance_covered=False):
         """Projects the data input data X using the relevance matrix of trained
