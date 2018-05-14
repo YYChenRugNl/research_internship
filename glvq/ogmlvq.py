@@ -88,7 +88,7 @@ class OGmlvqModel(GlvqModel):
 
     # ptype_id = np.array([0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5])
     # prototypes_per_class = 2
-    gaussian_sd = 1
+    gaussian_sd = 0.5
     gaussian_sd_wrong = 1
     kernel_size = 1
     # omega_ = np.eye(2)

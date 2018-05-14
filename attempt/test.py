@@ -38,11 +38,15 @@ basic_matrix = [[0.1, 0], [0, 0.1]]
 # list_label = [0, 1, 2, 3, 0, 1, 2, 3]
 # list_matrix = [basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_matrix]
 
-list_center = [[0, 0], [4, 0], [8, 0], [8, 4], [4, 4], [0, 4]]
-list_label = [0, 1, 2, 3, 4, 5]
-list_matrix = [basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_matrix]
+# list_center = [[0, 0], [4, 0], [8, 0], [8, 4], [4, 4], [0, 4]]
+# list_label = [0, 1, 2, 3, 4, 5]
+# list_matrix = [basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_matrix]
 
-number_sample = 10
+list_center = [[0, 0], [4, 0], [4, 4], [0, 4]]
+list_label = [0, 1, 2, 3]
+list_matrix = [basic_matrix, basic_matrix, basic_matrix, basic_matrix]
+
+number_sample = 50
 normalize_flag = True
 toy_data, toy_label = tools.artificial_data(number_sample, list_center, list_label, list_matrix, normalize_flag)
 
@@ -55,10 +59,10 @@ run_flag = True
 print('OGMLVQ:')
 
 if run_flag:
-    gmlvq = GmlvqModel(1)
-    gmlvq.fit(toy_data, toy_label)
-    plot2d(gmlvq, toy_data, toy_label, 1, 'gmlvq')
-    print('classification accuracy:', gmlvq.score(toy_data, toy_label))
+    # gmlvq = GmlvqModel(1)
+    # gmlvq.fit(toy_data, toy_label)
+    # plot2d(gmlvq, toy_data, toy_label, 1, 'gmlvq')
+    # print('classification accuracy:', gmlvq.score(toy_data, toy_label))
 
     ogmlvq = OGmlvqModel(1, gtol=0.001)
     ogmlvq.fit(toy_data, toy_label)
