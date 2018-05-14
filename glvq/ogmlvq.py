@@ -87,8 +87,8 @@ class OGmlvqModel(GlvqModel):
 
     # ptype_id = np.array([0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5])
     # prototypes_per_class = 2
-    gaussian_sd = 0.1
-    gaussian_sd_wrong = 0.1
+    gaussian_sd = 0.5
+    gaussian_sd_wrong = 1
     kernel_size = 1
     # omega_ = np.eye(2)
     # W_ = np.array([[1.1, 9.5], [2.1, 9.8], [20, 20], [32, -1.7], [0.5, -2.5], [9.8, -3.4], [-9.4, -3.6]
@@ -193,8 +193,8 @@ class OGmlvqModel(GlvqModel):
 
             pid_correct = closest_cor_p[0]
             pid_wrong = closest_wro_p[0]
-            self.delta_all_prototypes[pid_correct] = self.delta_all_prototypes[pid_correct] - delta_correct_prot * lr_pt
-            self.delta_all_prototypes[pid_wrong] = self.delta_all_prototypes[pid_wrong] - delta_correct_prot * lr_pt
+            self.delta_all_prototypes[pid_correct] = self.delta_all_prototypes[pid_correct] + delta_correct_prot * lr_pt
+            self.delta_all_prototypes[pid_wrong] = self.delta_all_prototypes[pid_wrong] + delta_correct_prot * lr_pt
             # self.w_[pid_correct] = self.w_[pid_correct] - delta_correct_prot * lr_pt
             # self.w_[pid_wrong] = self.w_[pid_wrong] - delta_wrong_prot * lr_pt
             self.delta_all_omega = self.delta_all_omega - delta_omega * lr_om
@@ -212,7 +212,8 @@ class OGmlvqModel(GlvqModel):
 
         sum_dis_plus_minus_sqr = (alpha_distance_plus + alpha_distance_minus) * (alpha_distance_plus + alpha_distance_minus)
         mu_plus = 2 * alpha_plus * alpha_distance_minus / sum_dis_plus_minus_sqr
-        mu_minus = 2 * alpha_minus * alpha_distance_plus / sum_dis_plus_minus_sqr
+        mu_minus = 2*(1-pt_pair[1][1]/(2*pow(self.gaussian_sd_wrong, 2)))*alpha_minus*alpha_distance_plus/sum_dis_plus_minus_sqr
+
 
         pid_correct = pt_pair[0][0]
         pid_wrong = pt_pair[1][0]
@@ -226,12 +227,13 @@ class OGmlvqModel(GlvqModel):
         delta_omega_minus = gamma_minus * 2 * alpha_minus * self.omega_.dot(diff_mtx_wrong)
 
         # delta_omega = delta_omega_plus + delta_omega_minus
-        delta_omega = 2 * mu_plus * self.omega_.dot(diff_mtx_correct) - 2 * mu_minus * self.omega_.dot(diff_mtx_wrong)
+        delta_omega = -2 * mu_plus * self.omega_.dot(diff_mtx_correct) - 2*mu_minus*self.omega_.dot(diff_mtx_wrong)
 
         # delta_correct_prot = gamma_plus * (-2*alpha_plus*diff_correct.dot(self.omega_.T.dot(self.omega_)))
-        delta_correct_prot = -2 * mu_plus * diff_correct.dot(self.omega_.T.dot(self.omega_))
+        delta_correct_prot = 2*mu_plus * diff_correct.dot(self.omega_.T.dot(self.omega_))
+
         # delta_wrong_prot = gamma_minus * (-2*alpha_minus*diff_wrong.dot(self.omega_.T.dot(self.omega_)))
-        delta_wrong_prot = 2 * mu_minus * diff_wrong.dot(self.omega_.T.dot(self.omega_))
+        delta_wrong_prot = -2*mu_minus*diff_wrong.dot(self.omega_.T.dot(self.omega_))
 
         return delta_correct_prot, delta_wrong_prot, delta_omega
 
