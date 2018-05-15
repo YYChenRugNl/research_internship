@@ -97,8 +97,8 @@ class OGmlvqModel(GlvqModel):
 
     def __init__(self, prototypes_per_class=1, kernel_size=1, initial_prototypes=None,
                  initial_matrix=None, regularization=0.0,
-                 dim=None, max_iter=2500, gtol=1e-5, display=False,
-                 random_state=None, lr_prototype=0.1, lr_omega=0.05):
+                 dim=None, max_iter=2500, gtol=1e-4, display=False,
+                 random_state=None, lr_prototype=0.1, lr_omega=0.05, final_lr=0.001):
         super(OGmlvqModel, self).__init__(prototypes_per_class,
                                          initial_prototypes, max_iter, gtol,
                                          display, random_state)
@@ -109,6 +109,8 @@ class OGmlvqModel(GlvqModel):
         self.gtol = gtol
         self.lr_prototype = lr_prototype
         self.lr_omega = lr_omega
+        converge_from = max(lr_prototype, lr_omega)
+        self.max_iter = min(int(converge_from / (final_lr * gtol) + 1 - 1 / gtol), max_iter)
 
     def find_prototype(self, data_point, label, k_size):
         list_square_dist = _squared_euclidean(data_point.dot(self.omega_.T), self.w_.dot(self.omega_.T)).flatten()
@@ -224,7 +226,7 @@ class OGmlvqModel(GlvqModel):
 
         squared_sum_alpha_plus_minus = (pow((alpha_distance_plus+alpha_distance_minus), 2))
         mu_plus = 2*alpha_distance_minus*alpha_plus/squared_sum_alpha_plus_minus
-        mu_minus = 2*(1-pt_pair[1][1]/(2*pow(self.gaussian_sd_wrong, 2)))*alpha_minus*alpha_distance_plus/squared_sum_alpha_plus_minus
+        mu_minus = 2*(1 - pt_pair[1][1]/(2*pow(self.gaussian_sd_wrong, 2)))*alpha_minus*alpha_distance_plus/squared_sum_alpha_plus_minus
 
         diff_mtx_correct = diff_correct.T.dot(diff_correct)
         delta_omega_plus = gamma_plus * 2 * alpha_plus * self.omega_.dot(diff_mtx_correct)
@@ -338,12 +340,12 @@ class OGmlvqModel(GlvqModel):
         # start the algorithm
         stop_flag = False
         epoch_index = 0
-        max_epoch = 100
+        max_epoch = self.max_iter
         cost_list = np.zeros([max_epoch, 1])
         lr_pt = self.lr_prototype
         lr_om = self.lr_omega
-        while not stop_flag:
-
+        print("iter number: ", self.max_iter)
+        for i in range(self.max_iter):
             for i in range(len(x)):
                 index = random.randrange(len(x))
                 datapoint = np.array([x[index]])
@@ -366,11 +368,10 @@ class OGmlvqModel(GlvqModel):
             cost_list[epoch_index] = sum_cost/cost_count
             epoch_index += 1
             if epoch_index >= max_epoch:
-                stop_flag = True
                 print(cost_list)
 
-            lr_pt = lr_pt / (1 + self.gtol * (epoch_index - 1))
-            lr_om = lr_om / (1 + self.gtol * (epoch_index - 1))
+            lr_pt = self.lr_prototype / (1 + self.gtol * (epoch_index - 1))
+            lr_om = self.lr_omega / (1 + self.gtol * (epoch_index - 1))
 
         # variables = np.append(self.w_, self.omega_, axis=0)
         # label_equals_prototype = y[np.newaxis].T == self.c_w_
