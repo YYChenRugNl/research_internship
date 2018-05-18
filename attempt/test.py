@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import csv
 
-from glvq import OGmlvqModel, plot2d, CustomTool, GmlvqModel
+from glvq import AOGmlvqModel, OGmlvqModel, plot2d, CustomTool, GmlvqModel
 
 print(__doc__)
 
@@ -70,4 +70,9 @@ if run_flag:
     ogmlvq.fit(toy_data, toy_label)
     plot2d(ogmlvq, toy_data, toy_label, 1, 'ogmlvq')
     print('classification accuracy:', ogmlvq.score(toy_data, toy_label))
+
+    aogmlvq = AOGmlvqModel(1, kernel_size=1, gtol=0.05, lr_prototype=0.1, lr_omega=0.05, final_lr=0.01)
+    aogmlvq.fit(toy_data, toy_label)
+    plot2d(aogmlvq, toy_data, toy_label, 1, 'aogmlvq')
+    print('classification accuracy:', aogmlvq.score(toy_data, toy_label))
     plt.show()
