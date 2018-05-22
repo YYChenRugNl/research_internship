@@ -7,11 +7,11 @@ from glvq import AOGmlvqModel, OGmlvqModel, plot2d, CustomTool, GmlvqModel
 
 print(__doc__)
 
-# datapath = '../benchmark_datasets/Abalone/abalone.data'
+datapath = '../benchmark_datasets/Abalone/abalone.data'
 # datapath = '../benchmark_datasets/Bank/Bank32nh/bank32nh.data'
-# domainpath = '../benchmark_datasets/Abalone/abalone.domain'
+domainpath = '../benchmark_datasets/Abalone/abalone.domain'
 tools = CustomTool()
-# toy_data, toy_label = tools.read_from_file(datapath, 0)
+toy_data, toy_label = tools.read_from_file(datapath, 0)
 # toy_data, toy_label = tools.read_from_file2(datapath)
 # toy_label[toy_label > 0.666] = 2
 # toy_label[(toy_label > 0.333) & (toy_label <= 0.666)] = 1
@@ -40,17 +40,17 @@ x_matrix = [[5, 0], [0, 1]]
 # list_label = [0, 1, 2, 3, 0, 1, 2, 3]
 # list_matrix = [basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_matrix]
 
-list_center = [[0, 0], [4, 0], [8, 0], [8, 4], [4, 4], [0, 4]]
-list_label = [0, 1, 2, 3, 4, 5]
-list_matrix = [basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_matrix]
+# list_center = [[0, 0], [4, 0], [8, 0], [8, 4], [4, 4], [0, 4]]
+# list_label = [0, 1, 2, 3, 4, 5]
+# list_matrix = [basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_matrix]
 
-# list_center = [[0, 0], [4, 0], [4, 4], [0, 4]]
-# list_label = [0, 1, 2, 3]
-# list_matrix = [y_matrix, basic_matrix, basic_matrix, y_matrix]
+list_center = [[0, 0], [4, 0], [4, 4], [0, 4]]
+list_label = [0, 1, 2, 3]
+list_matrix = [y_matrix, basic_matrix, basic_matrix, y_matrix]
 
 number_sample = 50
 normalize_flag = True
-toy_data, toy_label = tools.artificial_data(number_sample, list_center, list_label, list_matrix, normalize_flag)
+# toy_data, toy_label = tools.artificial_data(number_sample, list_center, list_label, list_matrix, normalize_flag)
 
 # print(toy_data)
 # print(toy_label)
@@ -58,21 +58,24 @@ toy_data, toy_label = tools.artificial_data(number_sample, list_center, list_lab
 run_flag = True
 # run_flag = False
 
-print('OGMLVQ:')
 
 if run_flag:
     # gmlvq = GmlvqModel(1)
     # gmlvq.fit(toy_data, toy_label)
     # plot2d(gmlvq, toy_data, toy_label, 1, 'gmlvq')
-    # print('classification accuracy:', gmlvq.score(toy_data, toy_label))
-
-    ogmlvq = OGmlvqModel(1, kernel_size=1, gtol=0.05, lr_prototype=0.1, lr_omega=0.05, final_lr=0.01)
-    ogmlvq.fit(toy_data, toy_label)
-    plot2d(ogmlvq, toy_data, toy_label, 1, 'ogmlvq')
-    print('classification accuracy:', ogmlvq.score(toy_data, toy_label))
+    # print('gmlvq classification accuracy:', gmlvq.score(toy_data, toy_label))
+    #
+    # ogmlvq = OGmlvqModel(1, kernel_size=1, gtol=0.05, lr_prototype=0.1, lr_omega=0.05, final_lr=0.01)
+    # ogmlvq.fit(toy_data, toy_label)
+    # plot2d(ogmlvq, toy_data, toy_label, 1, 'ogmlvq')
+    # score, ab_score = ogmlvq.score(toy_data, toy_label)
+    # print('ogmlvq classification accuracy:', score)
+    # print('ogmlvq classification ab_accuracy:', ab_score)
 
     aogmlvq = AOGmlvqModel(1, kernel_size=1, gtol=0.05, lr_prototype=0.1, lr_omega=0.05, final_lr=0.01)
     aogmlvq.fit(toy_data, toy_label)
     plot2d(aogmlvq, toy_data, toy_label, 1, 'aogmlvq')
-    print('classification accuracy:', aogmlvq.score(toy_data, toy_label))
+    score, ab_score = aogmlvq.score(toy_data, toy_label)
+    print('aogmlvq classification accuracy:', score)
+    print('aogmlvq classification ab_accuracy:', ab_score)
     plt.show()

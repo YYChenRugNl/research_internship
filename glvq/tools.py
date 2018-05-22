@@ -12,7 +12,7 @@ class CustomTool():
         labels = new_data[:, arr_length-1:arr_length]
         # print(attr)
         # print(labels)
-        return attr, labels[:, 0]
+        return attr, self.relabel_data(labels[:, 0], 10)
 
     def read_from_file2(self, datapath):
         my_data = genfromtxt(datapath, delimiter=' ')
@@ -22,7 +22,37 @@ class CustomTool():
         labels = my_data[:, arr_length-1:arr_length]
         # print(attr)
         # print(labels)
-        return attr, labels[:, 0]
+        return attr, self.relabel_data(labels[:, 0], 10)
+
+    def relabel_data(self, labels, n_classes):
+        process_data = labels.copy()
+        unit = 100 / n_classes
+        current_rank = -1
+        rank_begin_label = np.inf
+        rank_end_label = np.inf
+        for i in range(n_classes):
+            # percentile of boundary in the beginning and in the end
+            bound_begin = i * unit
+            bound_end = (i+1) * unit
+            if bound_end > 100:
+                bound_end = 100
+            label_begin = np.percentile(labels, bound_begin)
+            label_end = np.percentile(labels, bound_end)
+
+
+            if rank_begin_label != label_begin and rank_end_label != label_end:
+                current_rank += 1
+                rank_begin_label = label_begin
+                rank_end_label = label_end
+
+            if label_begin == label_end:
+                process_data[labels == label_end] = current_rank
+            elif i == 0:
+                process_data[(labels <= label_end) & (labels >= label_begin)] = current_rank
+            else:
+                process_data[(labels <= label_end) & (labels > label_begin)] = current_rank
+
+        return process_data.astype(int)
 
     def artificial_data(self, sample_size, list_center, list_label, list_matrix, if_normalize=False):
         nb_ppc = sample_size
