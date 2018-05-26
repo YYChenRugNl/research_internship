@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from sklearn.utils import validation
 
 
-def plot2d(model, x, y, figure, title="", prototype_count=-1):
+def plot2d(model, x, y, figure, title="", prototype_count=-1, no_index=False):
     """
     Projects the input data to two dimensions and plots it. The projection is
     done using the relevances of the given glvq model.
@@ -32,12 +32,12 @@ def plot2d(model, x, y, figure, title="", prototype_count=-1):
                 'prototype_count may not be bigger than number of prototypes')
             return
         ax = f.add_subplot(1, nb_prototype + 1, 1)
-        ax.scatter(x[:, 0], x[:, 1], c=to_tango_colors(y), alpha=0.5)
-        ax.scatter(x[:, 0], x[:, 1], c=to_tango_colors(pred), marker='.')
-        ax.scatter(model.w_[:, 0], model.w_[:, 1],
-                   c=tango_color('aluminium', 5), marker='D')
-        ax.scatter(model.w_[:, 0], model.w_[:, 1],
-                   c=to_tango_colors(model.c_w_, 0), marker='.')
+        ax.scatter(x[:, 0], x[:, 1], c=to_tango_colors(y, no_index=no_index), alpha=0.5)
+        ax.scatter(x[:, 0], x[:, 1], c=to_tango_colors(pred, no_index=no_index), marker='.')
+
+        ax.scatter(model.w_[:, 0], model.w_[:, 1], c=tango_color('aluminium', 5), marker='D')
+        ax.scatter(model.w_[:, 0], model.w_[:, 1], c=to_tango_colors(model.c_w_, 0, no_index=no_index), marker='.')
+
         ax.axis('equal')
 
         d = sorted([(model._compute_distance(x[y == model.c_w_[i]],
@@ -48,7 +48,7 @@ def plot2d(model, x, y, figure, title="", prototype_count=-1):
             x_p = model.project(x, i, dim, print_variance_covered=True)
             w_p = model.project(model.w_[i], i, dim)
             ax = f.add_subplot(1, nb_prototype + 1, idxs.index(i) + 2)
-            ax.scatter(x_p[:, 0], x_p[:, 1], c=to_tango_colors(y, 0),
+            ax.scatter(x_p[:, 0], x_p[:, 1], c=to_tango_colors(y, 0, no_index=no_index),
                        alpha=0.2)
             # ax.scatter(X_p[:, 0], X_p[:, 1], c=pred, marker='.')
             ax.scatter(w_p[0], w_p[1],
@@ -59,23 +59,24 @@ def plot2d(model, x, y, figure, title="", prototype_count=-1):
 
     else:
         ax = f.add_subplot(121)
-        ax.scatter(x[:, 0], x[:, 1], c=to_tango_colors(y), alpha=0.5)
-        ax.scatter(x[:, 0], x[:, 1], c=to_tango_colors(pred), marker='.')
+        ax.scatter(x[:, 0], x[:, 1], c=to_tango_colors(y, no_index=no_index), alpha=0.5)
+        ax.scatter(x[:, 0], x[:, 1], c=to_tango_colors(pred, no_index=no_index), marker='.')
+
         ax.scatter(model.w_[:, 0], model.w_[:, 1],
                    c=tango_color('aluminium', 5), marker='D')
         ax.scatter(model.w_[:, 0], model.w_[:, 1],
-                   c=to_tango_colors(model.c_w_, 0), marker='.')
+                   c=to_tango_colors(model.c_w_, 0, no_index=no_index), marker='.')
         ax.axis('equal')
         x_p = model.project(x, dim, print_variance_covered=True)
         w_p = model.project(model.w_, dim)
 
         ax = f.add_subplot(122)
-        ax.scatter(x_p[:, 0], x_p[:, 1], c=to_tango_colors(y, 0), alpha=0.5)
+        ax.scatter(x_p[:, 0], x_p[:, 1], c=to_tango_colors(y, 0, no_index=no_index), alpha=0.5)
         # ax.scatter(X_p[:, 0], X_p[:, 1], c=pred, marker='.')
         ax.scatter(w_p[:, 0], w_p[:, 1],
                    c=tango_color('aluminium', 5), marker='D')
         ax.scatter(w_p[:, 0], w_p[:, 1], s=60,
-                   c=to_tango_colors(model.c_w_, 0), marker='.')
+                   c=to_tango_colors(model.c_w_, 0, no_index=no_index), marker='.')
         ax.axis('equal')
     f.show()
 
@@ -106,6 +107,9 @@ def tango_color(name, brightness=0):
         raise ValueError('{} is not a valid color'.format(name))
 
 
-def to_tango_colors(elems, brightness=0):
-    elem_set = list(set(elems))
-    return [tango_color(elem_set.index(e), brightness) for e in elems]
+def to_tango_colors(elems, brightness=0, no_index=False):
+    if no_index:
+        return [tango_color(int(e), brightness) for e in elems]
+    else:
+        elem_set = list(set(elems))
+        return [tango_color(elem_set.index(e), brightness) for e in elems]

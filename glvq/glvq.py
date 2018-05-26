@@ -273,4 +273,4 @@ class GlvqModel(BaseEstimator, ClassifierMixin):
                              "found=%d\n"
                              "expected=%d" % (self.w_.shape[1], x.shape[1]))
         dist = self._compute_distance(x)
-        return (self.c_w_[dist.argmin(1)])
+        return self.c_w_[dist.argmin(1)]

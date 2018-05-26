@@ -1,6 +1,6 @@
 from numpy import genfromtxt
 import numpy as np
-
+from sklearn.utils import resample
 
 class CustomTool():
     def read_from_file(self, datapath, toDelete):
@@ -12,7 +12,7 @@ class CustomTool():
         labels = new_data[:, arr_length-1:arr_length]
         # print(attr)
         # print(labels)
-        return attr, self.relabel_data(labels[:, 0], 10)
+        return self.normalize_attr(attr), self.relabel_data(labels[:, 0], 10)
 
     def read_from_file2(self, datapath):
         my_data = genfromtxt(datapath, delimiter=' ')
@@ -22,7 +22,17 @@ class CustomTool():
         labels = my_data[:, arr_length-1:arr_length]
         # print(attr)
         # print(labels)
-        return attr, self.relabel_data(labels[:, 0], 10)
+        return self.normalize_attr(attr), self.relabel_data(labels[:, 0], 10)
+
+    def normalize_attr(self, toy_data):
+        rows, dimen = toy_data.shape
+
+        for i in range(dimen):
+            mean = toy_data[:, i].mean()
+            std = toy_data[:, i].std()
+            toy_data[:, i] = (toy_data[:, i] - mean) / std
+
+        return toy_data
 
     def relabel_data(self, labels, n_classes):
         process_data = labels.copy()
@@ -39,7 +49,6 @@ class CustomTool():
             label_begin = np.percentile(labels, bound_begin)
             label_end = np.percentile(labels, bound_end)
 
-
             if rank_begin_label != label_begin and rank_end_label != label_end:
                 current_rank += 1
                 rank_begin_label = label_begin
@@ -53,6 +62,24 @@ class CustomTool():
                 process_data[(labels <= label_end) & (labels > label_begin)] = current_rank
 
         return process_data.astype(int)
+
+    def up_sample(self, x, y):
+        init_shape = x.shape
+        unique, counts = np.unique(y, return_counts=True)
+        max_count = int(counts.max())
+        new_x = np.array([])
+        new_y = np.array([])
+
+        for cls in unique:
+            subset_x = np.array(x[y == cls])
+            subset_y = np.ones([max_count, 1]) * cls
+            subset_x = resample(subset_x, n_samples=max_count, random_state=0)
+            new_x = np.append(new_x, subset_x)
+            new_y = np.append(new_y, subset_y)
+
+        new_x = new_x.reshape(new_x.size // init_shape[1], init_shape[1])
+        return new_x, new_y
+
 
     def artificial_data(self, sample_size, list_center, list_label, list_matrix, if_normalize=False):
         nb_ppc = sample_size

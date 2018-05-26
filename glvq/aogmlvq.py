@@ -429,10 +429,11 @@ class AOGmlvqModel(GlvqModel):
             omega = self.omega_
         nb_samples = x.shape[0]
         nb_prototypes = w.shape[0]
-        distance = np.zeros([nb_prototypes, nb_samples])
-        for i in range(nb_prototypes):
-            distance[i] = np.sum((x - w[i]).dot(omega.T) ** 2, 1)
-        return distance.T
+        # distance = np.zeros([nb_prototypes, nb_samples])
+        # for i in range(nb_prototypes):
+        #     distance[i] = np.sum((x - w[i]).dot(omega.T) ** 2, 1)
+        distance = _squared_euclidean(x.dot(omega.T), w.dot(omega.T))
+        return distance
 
     def score(self, x, y):
         count = 0
