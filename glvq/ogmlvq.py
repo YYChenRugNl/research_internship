@@ -98,7 +98,7 @@ class OGmlvqModel(GlvqModel):
     def __init__(self, prototypes_per_class=1, kernel_size=1, initial_prototypes=None,
                  initial_matrix=None, regularization=0.0,
                  dim=None, max_iter=2500, gtol=1e-4, display=False,
-                 random_state=None, lr_prototype=0.1, lr_omega=0.05, final_lr=0.001):
+                 random_state=None, lr_prototype=0.1, lr_omega=0.05, final_lr=0.001, batch_flag=True):
         super(OGmlvqModel, self).__init__(prototypes_per_class,
                                          initial_prototypes, max_iter, gtol,
                                          display, random_state)
@@ -111,6 +111,7 @@ class OGmlvqModel(GlvqModel):
         self.lr_omega = lr_omega
         converge_from = max(lr_prototype, lr_omega)
         self.max_iter = min(int(converge_from / (final_lr * gtol) + 1 - 1 / gtol), max_iter)
+        self.batch_flag = batch_flag
 
     def find_prototype(self, data_point, label, k_size):
         list_square_dist = _squared_euclidean(data_point.dot(self.omega_.T), self.w_.dot(self.omega_.T)).flatten()
@@ -201,13 +202,19 @@ class OGmlvqModel(GlvqModel):
 
             pid_correct = closest_cor_p[0]
             pid_wrong = closest_wro_p[0]
-            # print(self.w_)
-            # print(self.omega_)
-            self.w_[pid_correct] = self.w_[pid_correct] + delta_correct_prot * lr_pt
-            self.w_[pid_wrong] = self.w_[pid_wrong] + delta_wrong_prot * lr_pt
-            self.omega_ = self.omega_ - delta_omega * lr_om
-            # print(self.w_)
-            # print(self.omega_)
+
+            if self.batch_flag:
+                self.delta_prototypes_sum[pid_correct] += delta_correct_prot[0] * lr_pt
+                self.delta_prototypes_sum[pid_wrong] += delta_wrong_prot[0] * lr_pt
+                self.delta_omega_sum -= delta_omega * lr_om
+            else:
+                # print(self.w_)
+                # print(self.omega_)
+                self.w_[pid_correct] = self.w_[pid_correct] + delta_correct_prot * lr_pt
+                self.w_[pid_wrong] = self.w_[pid_wrong] + delta_wrong_prot * lr_pt
+                self.omega_ = self.omega_ - delta_omega * lr_om
+                # print(self.w_)
+                # print(self.omega_)
 
     # calculate derivatives of prototypes a, b and omega
     def _derivatives(self, pt_pair, label, max_error_cls, datapoint, D):
@@ -239,7 +246,7 @@ class OGmlvqModel(GlvqModel):
         delta_omega = 2 * mu_plus * self.omega_.dot(diff_mtx_correct) - 2*mu_minus*self.omega_.dot(diff_mtx_wrong)
 
         # delta_correct_prot = gamma_plus * (-2*alpha_plus*diff_correct.dot(self.omega_.T.dot(self.omega_)))
-        delta_correct_prot = 2*mu_plus * diff_correct.dot(self.omega_.T.dot(self.omega_))
+        delta_correct_prot = 2 * mu_plus * diff_correct.dot(self.omega_.T.dot(self.omega_))
 
         # addition_term = -2*alpha_minus*(-1/(2*pow(self.gaussian_sd_wrong, 2))) * pt_pair[1][1] * diff_wrong.dot(self.omega_.T.dot(self.omega_))
         # delta_wrong_prot = gamma_minus * (-2*alpha_minus*diff_wrong.dot(self.omega_.T.dot(self.omega_))+addition_term)
@@ -336,9 +343,9 @@ class OGmlvqModel(GlvqModel):
 
         self.gaussian_sd = self.gaussian_sd * math.sqrt(nb_features)
 
+        self.init_w = self.w_.copy()
 
         # start the algorithm
-        stop_flag = False
         epoch_index = 0
         max_epoch = self.max_iter
         cost_list = np.zeros([max_epoch, 1])
@@ -346,15 +353,32 @@ class OGmlvqModel(GlvqModel):
         lr_om = self.lr_omega
         print("iter number: ", self.max_iter)
         for i in range(self.max_iter):
-            for i in range(len(x)):
-                index = random.randrange(len(x))
-                datapoint = np.array([x[index]])
-                label = y[index]
-                W_plus, W_minus, max_error_cls, D = self.find_prototype(datapoint, label, self.kernel_size)
-                self.update_prot_and_omega(W_plus, W_minus, label, max_error_cls, datapoint, lr_pt, lr_om, D)
+            if self.batch_flag:
+                self.delta_prototypes_sum = np.zeros(self.w_.shape)
+                self.delta_omega_sum = np.zeros(self.omega_.shape)
+
+                for j in range(len(x)):
+                    index = j
+                    datapoint = np.array([x[index]])
+                    label = y[index]
+                    W_plus, W_minus, max_error_cls, D = self.find_prototype(datapoint, label, self.kernel_size)
+                    self.update_prot_and_omega(W_plus, W_minus, label, max_error_cls, datapoint, lr_pt, lr_om, D)
+                # batch update
+                self.w_ += self.delta_prototypes_sum
+                self.omega_ += self.delta_omega_sum
                 # normalize the omega
                 self.omega_ /= math.sqrt(
                     np.sum(np.diag(self.omega_.T.dot(self.omega_))))
+            else:
+                for j in range(len(x)):
+                    index = random.randrange(len(x))
+                    datapoint = np.array([x[index]])
+                    label = y[index]
+                    W_plus, W_minus, max_error_cls, D = self.find_prototype(datapoint, label, self.kernel_size)
+                    self.update_prot_and_omega(W_plus, W_minus, label, max_error_cls, datapoint, lr_pt, lr_om, D)
+                    # normalize the omega
+                    self.omega_ /= math.sqrt(
+                        np.sum(np.diag(self.omega_.T.dot(self.omega_))))
 
             sum_cost = 0
             cost_count = 0

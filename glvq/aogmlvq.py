@@ -365,7 +365,7 @@ class AOGmlvqModel(GlvqModel):
                     "expected=%d" % (self.omega_.shape[1], nb_features))
 
         self.gaussian_sd = self.gaussian_sd * math.sqrt(nb_features)
-
+        self.init_w = self.w_.copy()
         # start the algorithm
         stop_flag = False
         epoch_index = 0
@@ -375,7 +375,7 @@ class AOGmlvqModel(GlvqModel):
         lr_om = self.lr_omega
         print("iter number: ", self.max_iter)
         for i in range(self.max_iter):
-            for i in range(len(x)):
+            for j in range(len(x)):
                 index = random.randrange(len(x))
                 datapoint = np.array([x[index]])
                 label = y[index]

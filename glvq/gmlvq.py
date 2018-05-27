@@ -202,6 +202,9 @@ class GmlvqModel(GlvqModel):
                     "found=%d\n"
                     "expected=%d" % (self.omega_.shape[1], nb_features))
 
+        self.init_w = self.w_.copy()
+        sum_iter = 0
+
         variables = np.append(self.w_, self.omega_, axis=0)
         label_equals_prototype = y[np.newaxis].T == self.c_w_
         method = 'l-bfgs-b'
@@ -216,6 +219,7 @@ class GmlvqModel(GlvqModel):
             options={'disp': self.display, 'gtol': self.gtol,
                      'maxiter': self.max_iter})
         n_iter = res.nit
+        sum_iter += n_iter
         res = minimize(
             fun=lambda vs:
             self._optfun(vs, x, label_equals_prototype=label_equals_prototype),
@@ -227,6 +231,7 @@ class GmlvqModel(GlvqModel):
             options={'disp': self.display, 'gtol': self.gtol,
                      'maxiter': self.max_iter})
         n_iter = max(n_iter, res.nit)
+        sum_iter += n_iter
         res = minimize(
             fun=lambda vs:
             self._optfun(vs, x, label_equals_prototype=label_equals_prototype),
@@ -238,12 +243,14 @@ class GmlvqModel(GlvqModel):
             options={'disp': self.display, 'gtol': self.gtol,
                      'maxiter': self.max_iter})
         n_iter = max(n_iter, res.nit)
+        sum_iter += n_iter
         out = res.x.reshape(res.x.size // nb_features, nb_features)
         self.w_ = out[:nb_prototypes]
         self.omega_ = out[nb_prototypes:]
         self.omega_ /= math.sqrt(
             np.sum(np.diag(self.omega_.T.dot(self.omega_))))
         self.n_iter_ = n_iter
+        print(sum_iter)
 
     def _compute_distance(self, x, w=None, omega=None):
         if w is None:

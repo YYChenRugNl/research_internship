@@ -80,7 +80,6 @@ class CustomTool():
         new_x = new_x.reshape(new_x.size // init_shape[1], init_shape[1])
         return new_x, new_y
 
-
     def artificial_data(self, sample_size, list_center, list_label, list_matrix, if_normalize=False):
         nb_ppc = sample_size
         k = len(list_center)

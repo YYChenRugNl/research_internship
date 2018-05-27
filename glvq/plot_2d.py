@@ -18,6 +18,8 @@ def plot2d(model, x, y, figure, title="", prototype_count=-1, no_index=False):
     :return: None
     """
     x, y = validation.check_X_y(x, y)
+    model.init_w, model.c_w_ = validation.check_X_y(model.init_w, model.c_w_)
+    model.w_, model.c_w_ = validation.check_X_y(model.w_, model.c_w_)
     dim = 2
     f = plt.figure(figure)
     f.suptitle(title)
@@ -70,6 +72,11 @@ def plot2d(model, x, y, figure, title="", prototype_count=-1, no_index=False):
         x_p = model.project(x, dim, print_variance_covered=True)
         w_p = model.project(model.w_, dim)
 
+        # plot initial prototypes
+        ax.scatter(model.init_w[:, 0], model.init_w[:, 1], c=tango_color('aluminium', 5), marker='D')
+        ax.scatter(model.init_w[:, 0], model.init_w[:, 1], c=to_tango_colors(model.c_w_, 0, no_index=no_index),
+                   marker='x')
+
         ax = f.add_subplot(122)
         ax.scatter(x_p[:, 0], x_p[:, 1], c=to_tango_colors(y, 0, no_index=no_index), alpha=0.5)
         # ax.scatter(X_p[:, 0], X_p[:, 1], c=pred, marker='.')
@@ -78,6 +85,8 @@ def plot2d(model, x, y, figure, title="", prototype_count=-1, no_index=False):
         ax.scatter(w_p[:, 0], w_p[:, 1], s=60,
                    c=to_tango_colors(model.c_w_, 0, no_index=no_index), marker='.')
         ax.axis('equal')
+
+
     f.show()
 
 
