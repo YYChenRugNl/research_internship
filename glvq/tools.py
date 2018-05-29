@@ -1,9 +1,13 @@
 from numpy import genfromtxt
 import numpy as np
 from sklearn.utils import resample
+from sklearn.model_selection import KFold
+
 
 class CustomTool():
-    def read_from_file(self, datapath, toDelete):
+    def read_from_abalone(self):
+        toDelete = 0
+        datapath = '../benchmark_datasets/Abalone/abalone.data'
         my_data = genfromtxt(datapath, delimiter=',')
         new_data = np.delete(my_data, toDelete, 1)
         arr_length = len(new_data[0, :])
@@ -14,8 +18,19 @@ class CustomTool():
         # print(labels)
         return self.normalize_attr(attr), self.relabel_data(labels[:, 0], 10)
 
-    def read_from_file2(self, datapath):
+    def read_from_bank(self):
+        datapath = '../benchmark_datasets/Bank/Bank32nh/bank32nh.data'
         my_data = genfromtxt(datapath, delimiter=' ')
+        arr_length = len(my_data[0, :])
+        # print(arr_length)
+        attr = my_data[:, 0:arr_length-1]
+        labels = my_data[:, arr_length-1:arr_length]
+        # print(attr)
+        # print(labels)
+        return self.normalize_attr(attr), self.relabel_data(labels[:, 0], 10)
+
+    def read_from_file(self, datapath):
+        my_data = genfromtxt(datapath, delimiter=',')
         arr_length = len(my_data[0, :])
         # print(arr_length)
         attr = my_data[:, 0:arr_length-1]
@@ -79,6 +94,24 @@ class CustomTool():
 
         new_x = new_x.reshape(new_x.size // init_shape[1], init_shape[1])
         return new_x, new_y
+
+    # 5-fold cross validation in default
+    def cross_validation(self, data, labels, fold=5):
+        length = len(data)
+        if length < fold:
+            raise ValueError(
+                " fold number {} is larger than data length {}".format(fold, length))
+        kf = KFold(n_splits=fold, random_state=None, shuffle=True)
+
+        train_list = []
+        test_list = []
+        for train_index, test_index in kf.split(data):
+            X_train, X_test = data[train_index], data[test_index]
+            Y_train, Y_test = labels[train_index], labels[test_index]
+            train_list.append([X_train, Y_train])
+            test_list.append([X_test, Y_test])
+
+        return train_list, test_list
 
     def artificial_data(self, sample_size, list_center, list_label, list_matrix, if_normalize=False):
         nb_ppc = sample_size

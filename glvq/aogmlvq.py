@@ -436,6 +436,7 @@ class AOGmlvqModel(GlvqModel):
         return distance
 
     def score(self, x, y):
+        # accuracy with tolerance
         count = 0
         for i in range(len(x)):
             datapoint = np.array([x[i]])
@@ -445,7 +446,6 @@ class AOGmlvqModel(GlvqModel):
 
             if abs(predict_class - y[i]) <= self.kernel_size:
                 count += 1
-
         accuracy = count/len(x)
 
         # absolute accuracy
@@ -458,9 +458,21 @@ class AOGmlvqModel(GlvqModel):
 
             if predict_class == y[i]:
                 ab_count += 1
-
         ab_accuracy = ab_count / len(x)
         # print("accuracy", accuracy)
+
+        # MAE
+        # count = 0
+        # for i in range(len(x)):
+        #     datapoint = np.array([x[i]])
+        #     distance_list = _squared_euclidean(datapoint.dot(self.omega_.T), self.w_.dot(self.omega_.T)).flatten()
+        #     min_ind = np.argmin(distance_list, axis=0)
+        #     predict_class = self.c_w_[min_ind]
+        #
+        #     if abs(predict_class - y[i]) <= self.kernel_size:
+        #         count += 1
+        # accuracy = count / len(x)
+
         return accuracy, ab_accuracy
 
     def project(self, x, dims, print_variance_covered=False):

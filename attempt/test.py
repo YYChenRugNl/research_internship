@@ -8,12 +8,12 @@ from glvq import AOGmlvqModel, OGmlvqModel, plot2d, CustomTool, GmlvqModel
 
 print(__doc__)
 
-# datapath = '../benchmark_datasets/Abalone/abalone.data'
-# datapath = '../benchmark_datasets/Bank/Bank32nh/bank32nh.data'
-# domainpath = '../benchmark_datasets/Abalone/abalone.domain'
+
+datapath = '../benchmark_datasets/Machine-Cpu/machine.data'
 tools = CustomTool()
-# toy_data, toy_label = tools.read_from_file(datapath, 0)
-# toy_data, toy_label = tools.read_from_file2(datapath)
+# toy_data, toy_label = tools.read_from_abalone()
+# toy_data, toy_label = tools.read_from_bank()
+toy_data, toy_label = tools.read_from_file(datapath)
 # toy_label[toy_label > 0.666] = 2
 # toy_label[(toy_label > 0.333) & (toy_label <= 0.666)] = 1
 # toy_label[toy_label <= 0.333] = 0
@@ -55,8 +55,10 @@ list_matrix = [basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_mat
 
 number_sample = 50
 normalize_flag = True
-toy_data, toy_label = tools.artificial_data(number_sample, list_center, list_label, list_matrix, normalize_flag)
-# toy_data, toy_label = tools.up_sample(toy_data, toy_label)
+# toy_data, toy_label = tools.artificial_data(number_sample, list_center, list_label, list_matrix, normalize_flag)
+toy_data, toy_label = tools.up_sample(toy_data, toy_label)
+toy_train_list, toy_test_list = tools.cross_validation(toy_data, toy_label, 5)
+
 # print(toy_data)
 # print(toy_label)
 
@@ -66,25 +68,39 @@ run_flag = True
 
 if run_flag:
     start = time.time()
-    # gmlvq = GmlvqModel(1)
-    # gmlvq.fit(toy_data, toy_label)
-    # plot2d(gmlvq, toy_data, toy_label, 1, 'gmlvq')
-    # print('gmlvq classification accuracy:', gmlvq.score(toy_data, toy_label))
+    # for number_prototype in [1, 2, 3, 4, 5, 6, 7]:
+    for number_prototype in [7]:
+        accuracy = 0
+        for idx in range(len(toy_train_list)):
+            train_data = toy_train_list[idx][0]
+            train_label = toy_train_list[idx][1]
+            test_data = toy_test_list[idx][0]
+            test_label = toy_test_list[idx][1]
 
-    ogmlvq = OGmlvqModel(1, kernel_size=1, gtol=0.05, lr_prototype=0.1, lr_omega=0.05, final_lr=0.01, batch_flag=True)
-    ogmlvq.fit(toy_data, toy_label)
-    plot2d(ogmlvq, toy_data, toy_label, 1, 'ogmlvq', no_index=True)
-    score, ab_score = ogmlvq.score(toy_data, toy_label)
-    print('ogmlvq classification accuracy:', score)
-    print('ogmlvq classification ab_accuracy:', ab_score)
+            # gmlvq = GmlvqModel(number_prototype)
+            # gmlvq.fit(train_data, train_label)
+            # # plot2d(gmlvq, test_data, test_label, 1, 'gmlvq')
+            # accuracy += gmlvq.score(test_data, test_label)
 
-    # aogmlvq = AOGmlvqModel(1, kernel_size=1, gtol=0.05, lr_prototype=0.1, lr_omega=0.05, final_lr=0.01, sigma3=0.5)
-    # aogmlvq.fit(toy_data, toy_label)
-    # plot2d(aogmlvq, toy_data, toy_label, 1, 'aogmlvq', no_index=True)
-    # score, ab_score = aogmlvq.score(toy_data, toy_label)
-    # print('aogmlvq classification accuracy:', score)
-    # print('aogmlvq classification ab_accuracy:', ab_score)
+            # ogmlvq = OGmlvqModel(1, kernel_size=0, gtol=0.01, lr_prototype=0.1, lr_omega=0.05, final_lr=0.01, batch_flag=False)
+            # ogmlvq.fit(train_data, train_label)
+            # # plot2d(ogmlvq, test_data, test_label, 1, 'ogmlvq', no_index=True)
+            # score, ab_score = ogmlvq.score(test_data, test_label)
+            # accuracy += score
+            # print('ogmlvq classification accuracy:', score)
+            # # print('ogmlvq classification ab_accuracy:', ab_score)
 
+            aogmlvq = AOGmlvqModel(1, kernel_size=0, gtol=0.0001, lr_prototype=0.1, lr_omega=0.05, final_lr=0.01, sigma3=0.5)
+            aogmlvq.fit(train_data, train_label)
+            # plot2d(aogmlvq, test_data, test_label, 1, 'aogmlvq', no_index=True)
+            score, ab_score = aogmlvq.score(test_data, test_label)
+            accuracy += score
+            print('aogmlvq classification accuracy:', score)
+            # print('aogmlvq classification ab_accuracy:', ab_score)
+
+        average_accuracy = accuracy/len(toy_train_list)
+        print('aogmlvq classification average accuracy:', average_accuracy)
+        print('number of prototypes:', number_prototype)
     end = time.time()
-    print(end - start)
+    print(end - start, "s")
     plt.show()

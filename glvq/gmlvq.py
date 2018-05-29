@@ -250,7 +250,7 @@ class GmlvqModel(GlvqModel):
         self.omega_ /= math.sqrt(
             np.sum(np.diag(self.omega_.T.dot(self.omega_))))
         self.n_iter_ = n_iter
-        print(sum_iter)
+        print("Total iter: ", sum_iter)
 
     def _compute_distance(self, x, w=None, omega=None):
         if w is None:
