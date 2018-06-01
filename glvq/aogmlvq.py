@@ -98,7 +98,8 @@ class AOGmlvqModel(GlvqModel):
     def __init__(self, prototypes_per_class=1, kernel_size=1, initial_prototypes=None,
                  initial_matrix=None, regularization=0.0,
                  dim=None, max_iter=2500, gtol=1e-4, display=False,
-                 random_state=None, lr_prototype=0.1, lr_omega=0.05, final_lr=0.001, sigma1=0.5, sigma2=0.5, sigma3=1):
+                 random_state=None, lr_prototype=0.1, lr_omega=0.05, final_lr=0.001, sigma1=0.5, sigma2=0.5, sigma3=1,
+                 cost_trace=False):
         super(AOGmlvqModel, self).__init__(prototypes_per_class,
                                          initial_prototypes, max_iter, gtol,
                                          display, random_state)
@@ -114,70 +115,41 @@ class AOGmlvqModel(GlvqModel):
         self.sigma1 = sigma1
         self.sigma2 = sigma2
         self.sigma3 = sigma3
+        self.cost_trace = cost_trace
 
     def find_prototype(self, data_point, label, k_size):
-        list_square_dist = _squared_euclidean(data_point.dot(self.omega_.T), self.w_.dot(self.omega_.T)).flatten()
-        # list_square_dist = _squared_euclidean(data_point.dot(self.omega_), self.w_.dot(self.omega_)).flatten()
-        list_dist = np.sqrt(list_square_dist)
-        np.around(list_dist, decimals=5)
+        list_dist = _squared_euclidean(data_point.dot(self.omega_.T), self.w_.dot(self.omega_.T)).flatten()
 
-        # list_square_dist2 = self._compute_distance(data_point, self.w_, self.omega_)
-        # list_dist2 = np.sqrt(list_square_dist2)
-        # print(list_dist2)
-
-        correct_cls_min = label - k_size
-        correct_cls_max = label + k_size
-        if correct_cls_min < self.ranking_range[0]:
-            correct_cls_min = self.ranking_range[0]
-        if correct_cls_max > self.ranking_range[1]:
-            correct_cls_max = self.ranking_range[1]
-
-        correct_ranking = np.array(list(range(int(correct_cls_min), int(correct_cls_max) + 1)))
-
-        # all classes with True and False
-        class_list = np.zeros((len(self.c_w_)//self.prototypes_per_class), dtype=bool)
-        class_list[correct_ranking] = True
-
-        # print(list_dist, label, self.c_w_)
-        # correct kernel class
-        correct_idx0 = correct_cls_min * self.prototypes_per_class
-        correct_idx1 = correct_cls_max * self.prototypes_per_class + self.prototypes_per_class
-        proto_correct_list = np.array(list(range(int(correct_idx0), int(correct_idx1))))
-
-        prototype_list = np.zeros((len(self.c_w_)), dtype=bool)
-        prototype_list[proto_correct_list] = True
+        class_list = self.class_list_dict[label]
+        prototype_list = self.prototype_list_dict[label]
 
         D = list_dist[np.invert(prototype_list)].mean()
-        # print(class_list)
 
         # collection set of closest prototype from each correct class
         # collection set of closest prototype from each wrong class
         cls_ind = 0
         W_plus = []
         W_minus = []
-        max_error_cls = 0
         for correct_cls in class_list:
             ind0 = cls_ind * self.prototypes_per_class
             ind1 = ind0 + self.prototypes_per_class
-            min_val = min(list_dist[ind0:ind1])
-            min_idx = np.argmin(list_dist[ind0:ind1], axis=0) + ind0
-            # print(min_idx, min_val)
+            trg_class_dis = list_dist[ind0:ind1]
+            argmin_idx = np.argmin(trg_class_dis, axis=0)
+            min_val = trg_class_dis[argmin_idx]
+            min_idx = argmin_idx + ind0
+
             if correct_cls:
                 W_plus.append([min_idx, min_val])
             elif min_val <= D:
                 W_minus.append([min_idx, min_val])
-                if abs(cls_ind - label) > max_error_cls:
-                    max_error_cls = abs(cls_ind - label)
             cls_ind += 1
-        # print(W_plus, W_minus)
-        return W_plus, W_minus, max_error_cls, D
+
+        return W_plus, W_minus, self.max_error_cls_dict[label], D
 
     # update prototype a and b, and omega
     def update_prot_and_omega(self, w_plus, w_minus, label, max_error_cls, datapoint, lr_pt, lr_om, D):
-        # print(w_plus, w_minus)
-
         pt_pairs = []
-        while len(w_plus) > 0 and len(w_minus) > 0:
+        while w_plus and w_minus:
             # find closest correct prototype from w_plus
             min_value = np.inf
             min_ind_correct = 0
@@ -208,7 +180,6 @@ class AOGmlvqModel(GlvqModel):
 
     # calculate derivatives of prototypes a, b and omega
     def _derivatives(self, pt_pairs, label, max_error_cls, datapoint, D, lr_om, lr_pt):
-        # print(max_error_cls)
         # calculate alpha+ and alpha-
         sum_alpha_distance_plus = 0
         sum_alpha_distance_minus = 0
@@ -229,7 +200,7 @@ class AOGmlvqModel(GlvqModel):
             sum_alpha_distance_minus_ranking += alpha_distance_minus_ranking
             sum_alpha_distance_square += alpha_minus_distance_square
 
-        squared_sum_alpha_plus_minus = (pow((sum_alpha_distance_plus+sum_alpha_distance_minus), 2))
+        squared_sum_alpha_plus_minus = (sum_alpha_distance_plus+sum_alpha_distance_minus) * (sum_alpha_distance_plus+sum_alpha_distance_minus)
         gamma_plus = 2*sum_alpha_distance_minus/squared_sum_alpha_plus_minus
         mu_plus = alpha_plus * gamma_plus
 
@@ -238,7 +209,7 @@ class AOGmlvqModel(GlvqModel):
 
         for pt_pair in pt_pairs:
             gamma_minus = 2 * sum_alpha_distance_plus/squared_sum_alpha_plus_minus
-            mu_minus = (1 - pt_pair[1][1]/(2*pow(self.sigma3, 2)))*alpha_minus * gamma_minus
+            mu_minus = (1 - math.sqrt(pt_pair[1][1])/(2*self.sigma3*self.sigma3))*alpha_minus * gamma_minus
 
             pid_correct = pt_pair[0][0]
             pid_wrong = pt_pair[1][0]
@@ -258,17 +229,16 @@ class AOGmlvqModel(GlvqModel):
 
             pid_correct = pt_pair[0][0]
             pid_wrong = pt_pair[1][0]
-            # print(self.w_)
-            # print(self.omega_)
+
             self.w_[pid_correct] = self.w_[pid_correct] + delta_correct_prot * lr_pt
             self.w_[pid_wrong] = self.w_[pid_wrong] + delta_wrong_prot * lr_pt
 
         delta_omega = -(2 * sum_delta_omega_plus - 2 * sum_delta_omega_minus)
-        self.omega_ = self.omega_ + delta_omega * lr_om
+        self.omega_ += delta_omega * lr_om
 
-        delta_sigma1 = -lr_pt * gamma_plus/(2*pow(self.sigma1, 3)) * sum_alpha_distance_plus_ranking
-        delta_sigma2 = lr_pt * gamma_minus/(2*pow(self.sigma2, 3)) * sum_alpha_distance_minus_ranking
-        delta_sigma3 = lr_pt * gamma_minus/(2*pow(self.sigma3, 3)) * sum_alpha_distance_square
+        delta_sigma1 = -lr_pt * gamma_plus/(2*self.sigma1*self.sigma1*self.sigma1) * sum_alpha_distance_plus_ranking
+        delta_sigma2 = lr_pt * gamma_minus/(2*self.sigma2*self.sigma2*self.sigma2) * sum_alpha_distance_minus_ranking
+        delta_sigma3 = lr_pt * gamma_minus/(2*self.sigma3*self.sigma3*self.sigma3) * sum_alpha_distance_square
 
         self.sigma1 += delta_sigma1
         self.sigma2 += delta_sigma2
@@ -280,9 +250,9 @@ class AOGmlvqModel(GlvqModel):
         distance_correct = pt_pair[0][1]
         ranking_diff_correct = abs(label - pt_pair[0][0] // self.prototypes_per_class)
 
-        alpha_plus = math.exp(- pow(ranking_diff_correct, 2) / (2 * pow(self.sigma1, 2)))
+        alpha_plus = math.exp(- ranking_diff_correct*ranking_diff_correct / (2 * self.sigma1 * self.sigma1))
 
-        alpha_distance_plus = alpha_plus * distance_correct
+        alpha_distance_plus = alpha_plus * math.sqrt(distance_correct)
         alpha_distance_plus_ranking = ranking_diff_correct * ranking_diff_correct * alpha_distance_plus
 
         return alpha_distance_plus, alpha_plus, alpha_distance_plus_ranking
@@ -291,13 +261,13 @@ class AOGmlvqModel(GlvqModel):
         distance_wrong = pt_pair[1][1]
         ranking_diff_wrong = abs(label - pt_pair[1][0] // self.prototypes_per_class)
 
-        alpha_minus = math.exp(-pow(max_error_cls - ranking_diff_wrong, 2) / (2 * pow(self.sigma2, 2))) \
+        alpha_minus = math.exp(-(max_error_cls - ranking_diff_wrong)*(max_error_cls - ranking_diff_wrong) / (2*self.sigma2*self.sigma2)) \
                       * \
-                      math.exp(-pow(distance_wrong, 2) / (2 * pow(self.sigma3, 2)))
+                      math.exp(- distance_wrong / (2 * self.sigma3*self.sigma3))
 
-        alpha_distance_minus = alpha_minus * distance_wrong
-        alpha_distance_minus_ranking = alpha_distance_minus * pow(max_error_cls - ranking_diff_wrong, 2)
-        alpha_minus_distance_square = alpha_minus * distance_wrong * distance_wrong
+        alpha_distance_minus = alpha_minus * math.sqrt(distance_wrong)
+        alpha_distance_minus_ranking = alpha_distance_minus * (max_error_cls - ranking_diff_wrong)*(max_error_cls - ranking_diff_wrong)
+        alpha_minus_distance_square = alpha_minus * distance_wrong
 
         return alpha_distance_minus, alpha_minus, alpha_distance_minus_ranking, alpha_minus_distance_square
 
@@ -306,7 +276,7 @@ class AOGmlvqModel(GlvqModel):
 
         sum_alpha_distance_plus = 0
         sum_alpha_distance_minus = 0
-        while len(w_plus) > 0 and len(w_minus) > 0:
+        while w_plus and w_minus:
             min_value = np.inf
             min_ind_correct = 0
             index = 0
@@ -328,7 +298,6 @@ class AOGmlvqModel(GlvqModel):
                 index += 1
             closest_wro_p = w_minus.pop(min_ind_wrong)
 
-            # update prototypes and omega here
             pt_pair = [closest_cor_p, closest_wro_p]
             alpha_distance_plus, alpha_plus, NA = self.alpha_dist_plus(pt_pair, label)
             alpha_distance_minus, alpha_minus, NA, NB = self.alpha_dist_minus(pt_pair, label, max_error_cls, D)
@@ -368,8 +337,42 @@ class AOGmlvqModel(GlvqModel):
 
         self.gaussian_sd = self.gaussian_sd * math.sqrt(nb_features)
         self.init_w = self.w_.copy()
+
+        self.max_error_cls_dict = {}
+        self.class_list_dict = {}
+        self.prototype_list_dict = {}
+
+        for key in self.ranking_list:
+            correct_cls_min = key - self.kernel_size
+            correct_cls_max = key + self.kernel_size
+            if correct_cls_min < self.ranking_range[0]:
+                correct_cls_min = self.ranking_range[0]
+            if correct_cls_max > self.ranking_range[1]:
+                correct_cls_max = self.ranking_range[1]
+
+            correct_ranking = np.array(list(range(int(correct_cls_min), int(correct_cls_max) + 1)))
+
+            # all classes with True and False
+            class_list = np.ones((len(self.c_w_) // self.prototypes_per_class), dtype=bool)
+            class_list[correct_ranking] = False
+            wrong_ranking = self.ranking_list[class_list]
+            self.max_error_cls_dict[key] = wrong_ranking.max() - wrong_ranking.min()
+
+            # all classes with True and False
+            class_list = np.invert(class_list)
+            self.class_list_dict[key] = class_list
+
+            # correct kernel class
+            correct_idx0 = correct_cls_min * self.prototypes_per_class
+            correct_idx1 = correct_cls_max * self.prototypes_per_class + self.prototypes_per_class
+            proto_correct_list = np.array(list(range(int(correct_idx0), int(correct_idx1))))
+
+            prototype_list = np.zeros((len(self.c_w_)), dtype=bool)
+            prototype_list[proto_correct_list] = True
+            self.prototype_list_dict[key] = prototype_list
+
         # start the algorithm
-        stop_flag = False
+        # stop_flag = False
         epoch_index = 0
         max_epoch = self.max_iter
         cost_list = np.zeros([max_epoch, 1])
@@ -387,53 +390,28 @@ class AOGmlvqModel(GlvqModel):
                 self.omega_ /= math.sqrt(
                     np.sum(np.diag(self.omega_.T.dot(self.omega_))))
 
-            sum_cost = 0
-            for index in range(len(x)):
-                datapoint = np.array([x[index]])
-                label = y[index]
-                cost = self._costfunc(datapoint, label, self.kernel_size)
-                sum_cost += cost
+            # calculate and print costs of all epochs
+            if self.cost_trace:
+                sum_cost = 0
+                for index in range(len(x)):
+                    datapoint = np.array([x[index]])
+                    label = y[index]
+                    cost = self._costfunc(datapoint, label, self.kernel_size)
+                    sum_cost += cost
 
-            cost_list[epoch_index] = sum_cost
-            epoch_index += 1
-            if epoch_index >= max_epoch:
-                print(cost_list)
+                cost_list[epoch_index] = sum_cost
+                epoch_index += 1
+                if epoch_index >= max_epoch:
+                    print(cost_list)
 
             lr_pt = self.lr_prototype / (1 + self.gtol * (epoch_index - 1))
             lr_om = self.lr_omega / (1 + self.gtol * (epoch_index - 1))
-
-        # variables = np.append(self.w_, self.omega_, axis=0)
-        # label_equals_prototype = y[np.newaxis].T == self.c_w_
-        # method = 'l-bfgs-b'
-        # res = minimize(
-        #     fun=lambda vs:
-        #     self._optfun(vs, x, label_equals_prototype=label_equals_prototype),
-        #     jac=lambda vs:
-        #     self._optgrad(vs, x, label_equals_prototype=label_equals_prototype,
-        #                   random_state=random_state,
-        #                   lr_prototypes=1, lr_relevances=0),
-        #     method=method, x0=variables,
-        #     options={'disp': self.display, 'gtol': self.gtol,
-        #              'maxiter': self.max_iter})
-        # n_iter = res.nit
-        #
-        # out = res.x.reshape(res.x.size // nb_features, nb_features)
-        # self.w_ = out[:nb_prototypes]
-        # self.omega_ = out[nb_prototypes:]
-        # self.omega_ /= math.sqrt(
-        #     np.sum(np.diag(self.omega_.T.dot(self.omega_))))
-        # self.n_iter_ = n_iter
 
     def _compute_distance(self, x, w=None, omega=None):
         if w is None:
             w = self.w_
         if omega is None:
             omega = self.omega_
-        nb_samples = x.shape[0]
-        nb_prototypes = w.shape[0]
-        # distance = np.zeros([nb_prototypes, nb_samples])
-        # for i in range(nb_prototypes):
-        #     distance[i] = np.sum((x - w[i]).dot(omega.T) ** 2, 1)
         distance = _squared_euclidean(x.dot(omega.T), w.dot(omega.T))
         return distance
 

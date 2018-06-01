@@ -206,9 +206,9 @@ class OGmlvqModel(GlvqModel):
         diff_correct = datapoint - self.w_[pid_correct]
         diff_wrong = datapoint - self.w_[pid_wrong]
 
-        squared_sum_alpha_plus_minus = (pow((alpha_distance_plus+alpha_distance_minus), 2))
+        squared_sum_alpha_plus_minus = (alpha_distance_plus+alpha_distance_minus)*(alpha_distance_plus+alpha_distance_minus)
         mu_plus = 2*alpha_distance_minus*alpha_plus/squared_sum_alpha_plus_minus
-        mu_minus = 2*(1 - pt_pair[1][1]/(2*pow(self.gaussian_sd_wrong, 2)))*alpha_minus*alpha_distance_plus/squared_sum_alpha_plus_minus
+        mu_minus = 2*(1 - math.sqrt(pt_pair[1][1])/(2*self.gaussian_sd_wrong*self.gaussian_sd_wrong))*alpha_minus*alpha_distance_plus/squared_sum_alpha_plus_minus
 
         diff_mtx_correct = diff_correct.T.dot(diff_correct)
         diff_mtx_wrong = diff_wrong.T.dot(diff_wrong)
@@ -223,7 +223,7 @@ class OGmlvqModel(GlvqModel):
         distance_correct = pt_pair[0][1]
         ranking_diff_correct = abs(label - pt_pair[0][0] // self.prototypes_per_class)
 
-        alpha_plus = math.exp(- pow(ranking_diff_correct, 2) / (2 * pow(self.gaussian_sd, 2)))
+        alpha_plus = math.exp(- ranking_diff_correct*ranking_diff_correct / (2 * self.gaussian_sd*self.gaussian_sd))
 
         alpha_distance_plus = alpha_plus * math.sqrt(distance_correct)
 
@@ -233,9 +233,9 @@ class OGmlvqModel(GlvqModel):
         distance_wrong = pt_pair[1][1]
         ranking_diff_wrong = abs(label - pt_pair[1][0] // self.prototypes_per_class)
 
-        alpha_minus = math.exp(- pow(max_error_cls - ranking_diff_wrong, 2) / (2 * pow(self.gaussian_sd, 2))) \
+        alpha_minus = math.exp(-(max_error_cls - ranking_diff_wrong)*(max_error_cls - ranking_diff_wrong) / (2*self.gaussian_sd*self.gaussian_sd)) \
                       * \
-                      math.exp(- distance_wrong / (2 * pow(self.gaussian_sd_wrong, 2)))
+                      math.exp(- distance_wrong / (2 *self.gaussian_sd_wrong*self.gaussian_sd_wrong))
 
         alpha_distance_minus = alpha_minus * math.sqrt(distance_wrong)
 
@@ -305,7 +305,6 @@ class OGmlvqModel(GlvqModel):
                     "expected=%d" % (self.omega_.shape[1], nb_features))
 
         self.gaussian_sd = self.gaussian_sd * math.sqrt(nb_features)
-
         self.init_w = self.w_.copy()
 
         self.max_error_cls_dict = {}

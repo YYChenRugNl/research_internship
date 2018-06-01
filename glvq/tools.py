@@ -148,3 +148,7 @@ class CustomTool():
             toy_data[:, 1] = (toy_data[:, 1] - mean1) / std1
 
         return toy_data, toy_label
+
+    def get_iteration(self, gtol, initial_lr, final_lr, max_iter=2500):
+        return min(int(initial_lr / (final_lr * gtol) + 1 - 1 / gtol), max_iter)
+
