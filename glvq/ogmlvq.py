@@ -88,7 +88,7 @@ class OGmlvqModel(GlvqModel):
 
     # ptype_id = np.array([0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5])
     # prototypes_per_class = 2
-    gaussian_sd = 0.5
+    gaussian_sd = 0.1
     gaussian_sd_wrong = 1
     kernel_size = 1
     # omega_ = np.eye(2)
@@ -434,31 +434,27 @@ class OGmlvqModel(GlvqModel):
 
     def score(self, x, y):
         count = 0
+        ab_count = 0
+        MAE_count = 0
         for i in range(len(x)):
             datapoint = np.array([x[i]])
             distance_list = _squared_euclidean(datapoint.dot(self.omega_.T), self.w_.dot(self.omega_.T)).flatten()
             min_ind = np.argmin(distance_list, axis=0)
             predict_class = self.c_w_[min_ind]
-
+            # accuracy with tolerance
             if abs(predict_class - y[i]) <= self.kernel_size:
                 count += 1
-
-        accuracy = count / len(x)
-
-        # absolute accuracy
-        ab_count = 0
-        for i in range(len(x)):
-            datapoint = np.array([x[i]])
-            distance_list = _squared_euclidean(datapoint.dot(self.omega_.T), self.w_.dot(self.omega_.T)).flatten()
-            min_ind = np.argmin(distance_list, axis=0)
-            predict_class = self.c_w_[min_ind]
-
+            # absolute accuracy (1-MZE)
             if predict_class == y[i]:
                 ab_count += 1
+            # MAE
+            MAE_count += abs(predict_class - y[i])
 
+        accuracy = count / len(x)
         ab_accuracy = ab_count / len(x)
-        # print("accuracy", accuracy)
-        return accuracy, ab_accuracy
+        MAE = MAE_count / len(x)
+
+        return accuracy, ab_accuracy, MAE
 
     def project(self, x, dims, print_variance_covered=False):
         """Projects the data input data X using the relevance matrix of trained

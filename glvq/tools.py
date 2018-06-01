@@ -39,6 +39,16 @@ class CustomTool():
         # print(labels)
         return self.normalize_attr(attr), self.relabel_data(labels[:, 0], 10)
 
+    def read_from_medical_data(self, datapath):
+        my_data = genfromtxt(datapath, delimiter=',', skip_header=1)
+        arr_length = len(my_data[0, :])
+        # print(arr_length)
+        attr = my_data[:, 1:arr_length]
+        labels = my_data[:, 0] - 1
+        # print(attr)
+        # print(labels)
+        return self.normalize_attr(attr), labels
+
     def normalize_attr(self, toy_data):
         rows, dimen = toy_data.shape
 

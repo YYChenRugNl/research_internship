@@ -273,6 +273,8 @@ class AOGmlvqModel(GlvqModel):
         self.sigma1 += delta_sigma1
         self.sigma2 += delta_sigma2
         self.sigma3 += delta_sigma3
+        # print("sigmas:")
+        # print(self.sigma1, self.sigma2, self.sigma3)
 
     def alpha_dist_plus(self, pt_pair, label):
         distance_correct = pt_pair[0][1]
@@ -436,44 +438,28 @@ class AOGmlvqModel(GlvqModel):
         return distance
 
     def score(self, x, y):
-        # accuracy with tolerance
         count = 0
+        ab_count = 0
+        MAE_count = 0
         for i in range(len(x)):
             datapoint = np.array([x[i]])
             distance_list = _squared_euclidean(datapoint.dot(self.omega_.T), self.w_.dot(self.omega_.T)).flatten()
             min_ind = np.argmin(distance_list, axis=0)
             predict_class = self.c_w_[min_ind]
-
+            # accuracy with tolerance
             if abs(predict_class - y[i]) <= self.kernel_size:
                 count += 1
-        accuracy = count/len(x)
-
-        # absolute accuracy
-        ab_count = 0
-        for i in range(len(x)):
-            datapoint = np.array([x[i]])
-            distance_list = _squared_euclidean(datapoint.dot(self.omega_.T), self.w_.dot(self.omega_.T)).flatten()
-            min_ind = np.argmin(distance_list, axis=0)
-            predict_class = self.c_w_[min_ind]
-
+            # absolute accuracy (1-MZE)
             if predict_class == y[i]:
                 ab_count += 1
+            # MAE
+            MAE_count += abs(predict_class - y[i])
+
+        accuracy = count / len(x)
         ab_accuracy = ab_count / len(x)
-        # print("accuracy", accuracy)
+        MAE = MAE_count / len(x)
 
-        # MAE
-        # count = 0
-        # for i in range(len(x)):
-        #     datapoint = np.array([x[i]])
-        #     distance_list = _squared_euclidean(datapoint.dot(self.omega_.T), self.w_.dot(self.omega_.T)).flatten()
-        #     min_ind = np.argmin(distance_list, axis=0)
-        #     predict_class = self.c_w_[min_ind]
-        #
-        #     if abs(predict_class - y[i]) <= self.kernel_size:
-        #         count += 1
-        # accuracy = count / len(x)
-
-        return accuracy, ab_accuracy
+        return accuracy, ab_accuracy, MAE
 
     def project(self, x, dims, print_variance_covered=False):
         """Projects the data input data X using the relevance matrix of trained
