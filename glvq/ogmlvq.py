@@ -88,8 +88,7 @@ class OGmlvqModel(GlvqModel):
 
     # ptype_id = np.array([0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5])
     # prototypes_per_class = 2
-    gaussian_sd = 0.1
-    gaussian_sd_wrong = 1
+
     kernel_size = 1
     # omega_ = np.eye(2)
     # W_ = np.array([[1.1, 9.5], [2.1, 9.8], [20, 20], [32, -1.7], [0.5, -2.5], [9.8, -3.4], [-9.4, -3.6]
@@ -98,7 +97,8 @@ class OGmlvqModel(GlvqModel):
     def __init__(self, prototypes_per_class=1, kernel_size=1, initial_prototypes=None,
                  initial_matrix=None, regularization=0.0,
                  dim=None, max_iter=2500, gtol=1e-4, display=False,
-                 random_state=None, lr_prototype=0.1, lr_omega=0.05, final_lr=0.001, batch_flag=True):
+                 random_state=None, lr_prototype=0.1, lr_omega=0.05, final_lr=0.001, batch_flag=True,
+                 sigma=0.5, sigma1=1, cost_trace=False):
         super(OGmlvqModel, self).__init__(prototypes_per_class,
                                          initial_prototypes, max_iter, gtol,
                                          display, random_state)
@@ -112,6 +112,9 @@ class OGmlvqModel(GlvqModel):
         converge_from = max(lr_prototype, lr_omega)
         self.max_iter = min(int(converge_from / (final_lr * gtol) + 1 - 1 / gtol), max_iter)
         self.batch_flag = batch_flag
+        self.gaussian_sd = sigma
+        self.gaussian_sd_wrong = sigma1
+        self.cost_trace = cost_trace
 
     def find_prototype(self, data_point, label, k_size):
         list_square_dist = _squared_euclidean(data_point.dot(self.omega_.T), self.w_.dot(self.omega_.T)).flatten()
@@ -153,7 +156,6 @@ class OGmlvqModel(GlvqModel):
         cls_ind = 0
         W_plus = []
         W_minus = []
-        max_error_cls = 0
         for correct_cls in class_list:
             ind0 = cls_ind * self.prototypes_per_class
             ind1 = ind0 + self.prototypes_per_class
@@ -164,11 +166,9 @@ class OGmlvqModel(GlvqModel):
                 W_plus.append([min_idx, min_val])
             elif min_val <= D:
                 W_minus.append([min_idx, min_val])
-                if abs(cls_ind - label) > max_error_cls:
-                    max_error_cls = abs(cls_ind - label)
             cls_ind += 1
         # print(W_plus, W_minus)
-        return W_plus, W_minus, max_error_cls, D
+        return W_plus, W_minus, self.max_error_cls_dict[label], D
 
     # update prototype a and b, and omega
     def update_prot_and_omega(self, w_plus, w_minus, label, max_error_cls, datapoint, lr_pt, lr_om, D):
@@ -345,13 +345,31 @@ class OGmlvqModel(GlvqModel):
 
         self.init_w = self.w_.copy()
 
+        self.max_error_cls_dict = {}
+        for key in self.ranking_list:
+
+            correct_cls_min = key - self.kernel_size
+            correct_cls_max = key + self.kernel_size
+            if correct_cls_min < self.ranking_range[0]:
+                correct_cls_min = self.ranking_range[0]
+            if correct_cls_max > self.ranking_range[1]:
+                correct_cls_max = self.ranking_range[1]
+
+            correct_ranking = np.array(list(range(int(correct_cls_min), int(correct_cls_max) + 1)))
+
+            # all classes with True and False
+            class_list = np.ones((len(self.c_w_) // self.prototypes_per_class), dtype=bool)
+            class_list[correct_ranking] = False
+            wrong_ranking = self.ranking_list[class_list]
+            self.max_error_cls_dict[key] = wrong_ranking.max() - wrong_ranking.min()
+
         # start the algorithm
         epoch_index = 0
         max_epoch = self.max_iter
         cost_list = np.zeros([max_epoch, 1])
         lr_pt = self.lr_prototype
         lr_om = self.lr_omega
-        print("iter number: ", self.max_iter)
+        # print("iter number: ", self.max_iter)
         for i in range(self.max_iter):
             if self.batch_flag:
                 self.delta_prototypes_sum = np.zeros(self.w_.shape)
@@ -380,19 +398,21 @@ class OGmlvqModel(GlvqModel):
                     self.omega_ /= math.sqrt(
                         np.sum(np.diag(self.omega_.T.dot(self.omega_))))
 
-            sum_cost = 0
-            cost_count = 0
-            for index in range(len(x)):
-                datapoint = np.array([x[index]])
-                label = y[index]
-                cost, count = self._costfunc(datapoint, label, self.kernel_size)
-                sum_cost += cost
-                cost_count += count
+            # calculate and print costs of all epochs
+            if self.cost_trace:
+                sum_cost = 0
+                cost_count = 0
+                for index in range(len(x)):
+                    datapoint = np.array([x[index]])
+                    label = y[index]
+                    cost, count = self._costfunc(datapoint, label, self.kernel_size)
+                    sum_cost += cost
+                    cost_count += count
 
-            cost_list[epoch_index] = sum_cost/cost_count
-            epoch_index += 1
-            if epoch_index >= max_epoch:
-                print(cost_list)
+                cost_list[epoch_index] = sum_cost/cost_count
+                epoch_index += 1
+                if epoch_index >= max_epoch:
+                    print(cost_list)
 
             lr_pt = self.lr_prototype / (1 + self.gtol * (epoch_index - 1))
             lr_om = self.lr_omega / (1 + self.gtol * (epoch_index - 1))
@@ -454,7 +474,7 @@ class OGmlvqModel(GlvqModel):
         ab_accuracy = ab_count / len(x)
         MAE = MAE_count / len(x)
 
-        return accuracy, ab_accuracy, MAE
+        return accuracy, ab_accuracy, MAE, self.max_iter
 
     def project(self, x, dims, print_variance_covered=False):
         """Projects the data input data X using the relevance matrix of trained
