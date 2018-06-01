@@ -135,8 +135,10 @@ class OGmlvqModel(GlvqModel):
         for correct_cls in class_list:
             ind0 = cls_ind * self.prototypes_per_class
             ind1 = ind0 + self.prototypes_per_class
-            min_val = min(list_dist[ind0:ind1])
-            min_idx = np.argmin(list_dist[ind0:ind1], axis=0) + ind0
+            trg_class_dis = list_dist[ind0:ind1]
+            argmin_idx = np.argmin(trg_class_dis, axis=0)
+            min_val = trg_class_dis[argmin_idx]
+            min_idx = argmin_idx + ind0
             # print(min_idx, min_val)
             if correct_cls:
                 W_plus.append([min_idx, min_val])
@@ -149,7 +151,7 @@ class OGmlvqModel(GlvqModel):
     # update prototype a and b, and omega
     def update_prot_and_omega(self, w_plus, w_minus, label, max_error_cls, datapoint, lr_pt, lr_om, D):
         # print(w_plus, w_minus)
-        while len(w_plus) > 0 and len(w_minus) > 0:
+        while w_plus and w_minus:
             # find closest correct prototype from w_plus
             min_value = np.inf
             min_ind_correct = 0
@@ -233,7 +235,7 @@ class OGmlvqModel(GlvqModel):
 
         alpha_minus = math.exp(- pow(max_error_cls - ranking_diff_wrong, 2) / (2 * pow(self.gaussian_sd, 2))) \
                       * \
-                      math.exp(-distance_wrong / (2 * pow(self.gaussian_sd_wrong, 2)))
+                      math.exp(- distance_wrong / (2 * pow(self.gaussian_sd_wrong, 2)))
 
         alpha_distance_minus = alpha_minus * math.sqrt(distance_wrong)
 
@@ -244,7 +246,7 @@ class OGmlvqModel(GlvqModel):
 
         sum_cost = 0
         cost_count = 0
-        while len(w_plus) > 0 and len(w_minus) > 0:
+        while w_plus and w_minus:
             min_value = np.inf
             min_ind_correct = 0
             index = 0
@@ -266,7 +268,6 @@ class OGmlvqModel(GlvqModel):
                 index += 1
             closest_wro_p = w_minus.pop(min_ind_wrong)
 
-            # update prototypes and omega here
             pt_pair = [closest_cor_p, closest_wro_p]
             alpha_distance_plus, alpha_plus = self.alpha_dist_plus(pt_pair, label)
             alpha_distance_minus, alpha_minus = self.alpha_dist_minus(pt_pair, label, max_error_cls, D)
