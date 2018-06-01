@@ -117,36 +117,12 @@ class OGmlvqModel(GlvqModel):
         self.cost_trace = cost_trace
 
     def find_prototype(self, data_point, label, k_size):
-        list_square_dist = _squared_euclidean(data_point.dot(self.omega_.T), self.w_.dot(self.omega_.T)).flatten()
-        # list_square_dist = _squared_euclidean(data_point.dot(self.omega_), self.w_.dot(self.omega_)).flatten()
-        list_dist = np.sqrt(list_square_dist)
-        np.around(list_dist, decimals=5)
+        list_dist = _squared_euclidean(data_point.dot(self.omega_.T), self.w_.dot(self.omega_.T)).flatten()
+        # list_dist = np.sqrt(list_square_dist)
+        # np.around(list_dist, decimals=5)
 
-        # list_square_dist2 = self._compute_distance(data_point, self.w_, self.omega_)
-        # list_dist2 = np.sqrt(list_square_dist2)
-        # print(list_dist2)
-
-        correct_cls_min = label - k_size
-        correct_cls_max = label + k_size
-        if correct_cls_min < self.ranking_range[0]:
-            correct_cls_min = self.ranking_range[0]
-        if correct_cls_max > self.ranking_range[1]:
-            correct_cls_max = self.ranking_range[1]
-
-        correct_ranking = np.array(list(range(int(correct_cls_min), int(correct_cls_max) + 1)))
-
-        # all classes with True and False
-        class_list = np.zeros((len(self.c_w_)//self.prototypes_per_class), dtype=bool)
-        class_list[correct_ranking] = True
-
-        # print(list_dist, label, self.c_w_)
-        # correct kernel class
-        correct_idx0 = correct_cls_min * self.prototypes_per_class
-        correct_idx1 = correct_cls_max * self.prototypes_per_class + self.prototypes_per_class
-        proto_correct_list = np.array(list(range(int(correct_idx0), int(correct_idx1))))
-
-        prototype_list = np.zeros((len(self.c_w_)), dtype=bool)
-        prototype_list[proto_correct_list] = True
+        class_list = self.class_list_dict[label]
+        prototype_list = self.prototype_list_dict[label]
 
         D = list_dist[np.invert(prototype_list)].mean()
         # print(class_list)
@@ -223,9 +199,6 @@ class OGmlvqModel(GlvqModel):
         alpha_distance_plus, alpha_plus = self.alpha_dist_plus(pt_pair, label)
         alpha_distance_minus, alpha_minus = self.alpha_dist_minus(pt_pair, label, max_error_cls, D)
 
-        gamma_plus = 2*alpha_distance_minus / pow((alpha_distance_plus + alpha_distance_minus), 2)
-        gamma_minus = -2*alpha_distance_plus / pow((alpha_distance_plus + alpha_distance_minus), 2)
-
         pid_correct = pt_pair[0][0]
         pid_wrong = pt_pair[1][0]
         diff_correct = datapoint - self.w_[pid_correct]
@@ -236,21 +209,10 @@ class OGmlvqModel(GlvqModel):
         mu_minus = 2*(1 - pt_pair[1][1]/(2*pow(self.gaussian_sd_wrong, 2)))*alpha_minus*alpha_distance_plus/squared_sum_alpha_plus_minus
 
         diff_mtx_correct = diff_correct.T.dot(diff_correct)
-        delta_omega_plus = gamma_plus * 2 * alpha_plus * self.omega_.dot(diff_mtx_correct)
-
         diff_mtx_wrong = diff_wrong.T.dot(diff_wrong)
-        delta_omega_minus = gamma_minus * 2 * alpha_minus * self.omega_.dot(diff_mtx_wrong)
 
-        # delta_omega = delta_omega_plus + delta_omega_minus
-        # print("delta_omega:", delta_omega)
         delta_omega = 2 * mu_plus * self.omega_.dot(diff_mtx_correct) - 2*mu_minus*self.omega_.dot(diff_mtx_wrong)
-
-        # delta_correct_prot = gamma_plus * (-2*alpha_plus*diff_correct.dot(self.omega_.T.dot(self.omega_)))
         delta_correct_prot = 2 * mu_plus * diff_correct.dot(self.omega_.T.dot(self.omega_))
-
-        # addition_term = -2*alpha_minus*(-1/(2*pow(self.gaussian_sd_wrong, 2))) * pt_pair[1][1] * diff_wrong.dot(self.omega_.T.dot(self.omega_))
-        # delta_wrong_prot = gamma_minus * (-2*alpha_minus*diff_wrong.dot(self.omega_.T.dot(self.omega_))+addition_term)
-        # print("delta:", delta_correct_prot, delta_wrong_prot)
         delta_wrong_prot = -2*mu_minus*diff_wrong.dot(self.omega_.T.dot(self.omega_))
 
         return delta_correct_prot, delta_wrong_prot, delta_omega
@@ -261,7 +223,7 @@ class OGmlvqModel(GlvqModel):
 
         alpha_plus = math.exp(- pow(ranking_diff_correct, 2) / (2 * pow(self.gaussian_sd, 2)))
 
-        alpha_distance_plus = alpha_plus * distance_correct
+        alpha_distance_plus = alpha_plus * math.sqrt(distance_correct)
 
         return alpha_distance_plus, alpha_plus
 
@@ -271,9 +233,9 @@ class OGmlvqModel(GlvqModel):
 
         alpha_minus = math.exp(- pow(max_error_cls - ranking_diff_wrong, 2) / (2 * pow(self.gaussian_sd, 2))) \
                       * \
-                      math.exp(-pow(distance_wrong, 2) / (2 * pow(self.gaussian_sd_wrong, 2)))
+                      math.exp(-distance_wrong / (2 * pow(self.gaussian_sd_wrong, 2)))
 
-        alpha_distance_minus = alpha_minus * distance_wrong
+        alpha_distance_minus = alpha_minus * math.sqrt(distance_wrong)
 
         return alpha_distance_minus, alpha_minus
 
@@ -346,8 +308,9 @@ class OGmlvqModel(GlvqModel):
         self.init_w = self.w_.copy()
 
         self.max_error_cls_dict = {}
+        self.class_list_dict = {}
+        self.prototype_list_dict = {}
         for key in self.ranking_list:
-
             correct_cls_min = key - self.kernel_size
             correct_cls_max = key + self.kernel_size
             if correct_cls_min < self.ranking_range[0]:
@@ -362,6 +325,19 @@ class OGmlvqModel(GlvqModel):
             class_list[correct_ranking] = False
             wrong_ranking = self.ranking_list[class_list]
             self.max_error_cls_dict[key] = wrong_ranking.max() - wrong_ranking.min()
+
+            # all classes with True and False
+            class_list = np.invert(class_list)
+            self.class_list_dict[key] = class_list
+
+            # correct kernel class
+            correct_idx0 = correct_cls_min * self.prototypes_per_class
+            correct_idx1 = correct_cls_max * self.prototypes_per_class + self.prototypes_per_class
+            proto_correct_list = np.array(list(range(int(correct_idx0), int(correct_idx1))))
+
+            prototype_list = np.zeros((len(self.c_w_)), dtype=bool)
+            prototype_list[proto_correct_list] = True
+            self.prototype_list_dict[key] = prototype_list
 
         # start the algorithm
         epoch_index = 0
