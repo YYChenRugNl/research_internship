@@ -15,11 +15,11 @@ print(__doc__)
 
 def test():
     # datapath = '../benchmark_datasets/Machine-Cpu/machine.data'
-    datapath = 'C:/Users/Yukki/Desktop/RIntern/data_ordinal.csv'
+    # datapath = 'C:/Users/Yukki/Desktop/RIntern/data_ordinal.csv'
     tools = CustomTool()
     # toy_data, toy_label = tools.read_from_abalone()
     # toy_data, toy_label = tools.read_from_bank()
-    toy_data, toy_label = tools.read_from_medical_data(datapath)
+    # toy_data, toy_label = tools.read_from_medical_data(datapath)
     # toy_label[toy_label > 0.666] = 2
     # toy_label[(toy_label > 0.333) & (toy_label <= 0.666)] = 1
     # toy_label[toy_label <= 0.333] = 0
@@ -61,8 +61,8 @@ def test():
 
     number_sample = 50
     normalize_flag = True
-    # toy_data, toy_label = tools.artificial_data(number_sample, list_center, list_label, list_matrix, normalize_flag)
-    toy_data, toy_label = tools.up_sample(toy_data, toy_label)
+    toy_data, toy_label = tools.artificial_data(number_sample, list_center, list_label, list_matrix, normalize_flag)
+    # toy_data, toy_label = tools.up_sample(toy_data, toy_label)
     toy_train_list, toy_test_list = tools.cross_validation(toy_data, toy_label, 2)
 
     # print(toy_data)
@@ -74,9 +74,7 @@ def test():
     if run_flag:
         start = time.time()
         # for number_prototype in [1, 2, 3, 4, 5, 6, 7]:
-        for number_prototype in [2]:
-            ab_accuracy = 0
-            MAE_sum = 0
+        for number_prototype in [1]:
             MZE_MAE_dic_list = []
             for idx in range(len(toy_train_list)):
                 train_data = toy_train_list[idx][0]
@@ -89,26 +87,19 @@ def test():
                 # plot2d(gmlvq, test_data, test_label, 1, 'gmlvq')
                 # accuracy += gmlvq.score(test_data, test_label)
 
-                ogmlvq = OGmlvqModel(number_prototype, kernel_size=1, gtol=0.05, lr_prototype=0.1, lr_omega=0.05, final_lr=0.01, batch_flag=False)
-                ogmlvq, epoch_MZE_MAE_dic = ogmlvq.fit(train_data, train_label, test_data, test_label)
-                # plot2d(ogmlvq, test_data, test_label, 1, 'ogmlvq', no_index=True)
-                # score, ab_score, MAE, max_iters = ogmlvq.score(test_data, test_label)
-                # ab_accuracy += ab_score
-                # MAE_sum += MAE
-                MZE_MAE_dic_list.append(epoch_MZE_MAE_dic)
-                # print('ogmlvq classification accuracy:', score)
-                # print('ogmlvq classification ab_accuracy:', ab_score)
-                # print('ogmlvq classification MAE:', MAE)
+                # ogmlvq = OGmlvqModel(number_prototype, kernel_size=0, gtol=0.05, lr_prototype=0.1, lr_omega=0.05,
+                #                      final_lr=0.01, batch_flag=False, n_interval=10)
+                # ogmlvq, epoch_MZE_MAE_dic, proto_history_list = ogmlvq.fit(train_data, train_label, test_data, test_label, trace_proto=True)
+                # plot2d(ogmlvq, test_data, test_label, proto_history_list, figure=1, prototype_count=number_prototype, title='p_ogmlvq', no_index=True)
+                # MZE_MAE_dic_list.append(epoch_MZE_MAE_dic)
 
-                # aogmlvq = AOGmlvqModel(1, kernel_size=1, gtol=0.05, lr_prototype=0.1, lr_omega=0.05, final_lr=0.01, sigma3=0.5)
-                # aogmlvq.fit(train_data, train_label)
-                # # plot2d(aogmlvq, test_data, test_label, 1, 'aogmlvq', no_index=True)
-                # score, ab_score, MAE = aogmlvq.score(test_data, test_label)
-                # ab_accuracy += ab_score
-                # MAE_sum += MAE
-                # print('aogmlvq classification accuracy:', score)
-                # print('aogmlvq classification ab_accuracy:', ab_score)
-                # print('aogmlvq classification MAE:', MAE)
+                aogmlvq = AOGmlvqModel(number_prototype, kernel_size=0, gtol=0.05, lr_prototype=0.1, lr_omega=0.05,
+                                       final_lr=0.01, sigma3=1, n_interval=100, max_iter=200)
+                aogmlvq, epoch_MZE_MAE_dic = aogmlvq.fit(train_data, train_label, train_data, train_label)
+                plot2d(aogmlvq, test_data, test_label, figure=1, prototype_count=number_prototype,
+                       title='p_ogmlvq', no_index=True)
+                MZE_MAE_dic_list.append(epoch_MZE_MAE_dic)
+
             key_list = MZE_MAE_dic_list[0].keys()
             for key in key_list:
                 average_MZE_MAE = sum(np.array(dic[key]) for dic in MZE_MAE_dic_list)/len(MZE_MAE_dic_list)

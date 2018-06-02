@@ -64,15 +64,6 @@ for number_prototype in number_prototype_list:
                 # print('ogmlvq classification ab_accuracy:', ab_score)
                 # print('ogmlvq classification MAE:', MAE)
 
-                # aogmlvq = AOGmlvqModel(1, kernel_size=1, gtol=0.05, lr_prototype=0.1, lr_omega=0.05, final_lr=0.01, sigma3=0.5)
-                # aogmlvq.fit(train_data, train_label)
-                # plot2d(aogmlvq, test_data, test_label, 1, 'aogmlvq', no_index=True)
-                # score, ab_score, MAE = aogmlvq.score(test_data, test_label)
-                # ab_accuracy += ab_score
-                # MAE_sum += MAE
-                # print('aogmlvq classification accuracy:', score)
-                # print('aogmlvq classification ab_accuracy:', ab_score)
-                # print('aogmlvq classification MAE:', MAE)
             key_list = MZE_MAE_dic_list[0].keys()
             for key in key_list:
                 average_MZE_MAE = sum(np.array(dic[key]) for dic in MZE_MAE_dic_list) / len(MZE_MAE_dic_list)

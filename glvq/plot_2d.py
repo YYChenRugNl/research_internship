@@ -1,10 +1,11 @@
 from operator import itemgetter
 
+import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.utils import validation
 
 
-def plot2d(model, x, y, figure, title="", prototype_count=-1, no_index=False):
+def plot2d(model, x, y, proto_history_list=[], figure=1, title="", prototype_count=-1, no_index=False):
     """
     Projects the input data to two dimensions and plots it. The projection is
     done using the relevances of the given glvq model.
@@ -21,7 +22,7 @@ def plot2d(model, x, y, figure, title="", prototype_count=-1, no_index=False):
     model.init_w, model.c_w_ = validation.check_X_y(model.init_w, model.c_w_)
     model.w_, model.c_w_ = validation.check_X_y(model.w_, model.c_w_)
     dim = 2
-    f = plt.figure(figure)
+    f = plt.figure(figure, figsize=(20, 20))
     f.suptitle(title)
     pred = model.predict(x)
 
@@ -60,7 +61,7 @@ def plot2d(model, x, y, figure, title="", prototype_count=-1, no_index=False):
             ax.axis('equal')
 
     else:
-        ax = f.add_subplot(121)
+        ax = f.add_subplot(221)
         ax.scatter(x[:, 0], x[:, 1], c=to_tango_colors(y, no_index=no_index), alpha=0.5)
         ax.scatter(x[:, 0], x[:, 1], c=to_tango_colors(pred, no_index=no_index), marker='.')
 
@@ -77,7 +78,7 @@ def plot2d(model, x, y, figure, title="", prototype_count=-1, no_index=False):
         ax.scatter(model.init_w[:, 0], model.init_w[:, 1], c=to_tango_colors(model.c_w_, 0, no_index=no_index),
                    marker='x')
 
-        ax = f.add_subplot(122)
+        ax = f.add_subplot(222)
         ax.scatter(x_p[:, 0], x_p[:, 1], c=to_tango_colors(y, 0, no_index=no_index), alpha=0.5)
         # ax.scatter(X_p[:, 0], X_p[:, 1], c=pred, marker='.')
         ax.scatter(w_p[:, 0], w_p[:, 1],
@@ -86,6 +87,30 @@ def plot2d(model, x, y, figure, title="", prototype_count=-1, no_index=False):
                    c=to_tango_colors(model.c_w_, 0, no_index=no_index), marker='.')
         ax.axis('equal')
 
+        # trace prototypes
+
+        # f.plot([2,2], [3,3])
+        # ax = f.add_subplot(133)
+        # ax.plot([1, 2, 3, 4], [1, 4, 9, 16])
+        # ax.axis([0, 6, 0, 20])
+        if proto_history_list:
+            ax = f.add_subplot(223)
+
+            # plot initial prototypes
+            ax.scatter(model.init_w[:, 0], model.init_w[:, 1], c=tango_color('aluminium', 5), marker='D')
+            ax.scatter(model.init_w[:, 0], model.init_w[:, 1], c=to_tango_colors(model.c_w_, 0, no_index=no_index),
+                       marker='x')
+
+            proto_history_list = np.array(proto_history_list)
+            fake_y = np.ones([len(proto_history_list[:, 0]), 1])
+
+            for i in range(len(proto_history_list[0, :])):
+                w_, label = validation.check_X_y(proto_history_list[:, i, :], fake_y)
+                all_x = np.append(model.init_w[i, 0], w_[:, 0])
+                all_y = np.append(model.init_w[i, 1], w_[:, 1])
+                color = to_tango_colors(np.array([i//prototype_count]), 0, no_index=no_index)[0]
+                ax.plot(all_x, all_y, c=color)
+                # plt.plot()
 
     f.show()
 
