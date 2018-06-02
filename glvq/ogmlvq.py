@@ -98,7 +98,7 @@ class OGmlvqModel(GlvqModel):
                  initial_matrix=None, regularization=0.0,
                  dim=None, max_iter=2500, gtol=1e-4, display=False,
                  random_state=None, lr_prototype=0.1, lr_omega=0.05, final_lr=0.001, batch_flag=True,
-                 sigma=0.5, sigma1=1, cost_trace=False):
+                 sigma=0.5, sigma1=1, cost_trace=False, n_interval=50):
         super(OGmlvqModel, self).__init__(prototypes_per_class,
                                          initial_prototypes, max_iter, gtol,
                                          display, random_state)
@@ -115,6 +115,7 @@ class OGmlvqModel(GlvqModel):
         self.gaussian_sd = sigma
         self.gaussian_sd_wrong = sigma1
         self.cost_trace = cost_trace
+        self.n_interval = n_interval
 
     def find_prototype(self, data_point, label, k_size):
         list_dist = _squared_euclidean(data_point.dot(self.omega_.T), self.w_.dot(self.omega_.T)).flatten()
@@ -277,7 +278,7 @@ class OGmlvqModel(GlvqModel):
 
         return sum_cost, cost_count
 
-    def _optimize(self, x, y, random_state):
+    def _optimize(self, x, y, random_state, test_x, test_y):
         if not isinstance(self.regularization, float) or self.regularization < 0:
             raise ValueError("regularization must be a positive float ")
         nb_prototypes, nb_features = self.w_.shape
@@ -345,8 +346,9 @@ class OGmlvqModel(GlvqModel):
         cost_list = np.zeros([max_epoch, 1])
         lr_pt = self.lr_prototype
         lr_om = self.lr_omega
-        # print("iter number: ", self.max_iter)
-        for i in range(self.max_iter):
+        epoch_MZE_MAE_dic = {}
+
+        for i in range(max_epoch):
             if self.batch_flag:
                 self.delta_prototypes_sum = np.zeros(self.w_.shape)
                 self.delta_omega_sum = np.zeros(self.omega_.shape)
@@ -374,6 +376,10 @@ class OGmlvqModel(GlvqModel):
                     self.omega_ /= math.sqrt(
                         np.sum(np.diag(self.omega_.T.dot(self.omega_))))
 
+            if (i+1) % self.n_interval == 0 or (i+1) == max_epoch:
+                score, ab_score, MAE = self.score(test_x, test_y)
+                epoch_MZE_MAE_dic[i+1] = [1-ab_score, MAE]
+
             # calculate and print costs of all epochs
             if self.cost_trace:
                 sum_cost = 0
@@ -393,27 +399,7 @@ class OGmlvqModel(GlvqModel):
             lr_pt = self.lr_prototype / (1 + self.gtol * (epoch_index - 1))
             lr_om = self.lr_omega / (1 + self.gtol * (epoch_index - 1))
 
-        # variables = np.append(self.w_, self.omega_, axis=0)
-        # label_equals_prototype = y[np.newaxis].T == self.c_w_
-        # method = 'l-bfgs-b'
-        # res = minimize(
-        #     fun=lambda vs:
-        #     self._optfun(vs, x, label_equals_prototype=label_equals_prototype),
-        #     jac=lambda vs:
-        #     self._optgrad(vs, x, label_equals_prototype=label_equals_prototype,
-        #                   random_state=random_state,
-        #                   lr_prototypes=1, lr_relevances=0),
-        #     method=method, x0=variables,
-        #     options={'disp': self.display, 'gtol': self.gtol,
-        #              'maxiter': self.max_iter})
-        # n_iter = res.nit
-        #
-        # out = res.x.reshape(res.x.size // nb_features, nb_features)
-        # self.w_ = out[:nb_prototypes]
-        # self.omega_ = out[nb_prototypes:]
-        # self.omega_ /= math.sqrt(
-        #     np.sum(np.diag(self.omega_.T.dot(self.omega_))))
-        # self.n_iter_ = n_iter
+        return epoch_MZE_MAE_dic
 
     def _compute_distance(self, x, w=None, omega=None):
         if w is None:
@@ -426,7 +412,32 @@ class OGmlvqModel(GlvqModel):
         # for i in range(nb_prototypes):
         #     distance[i] = np.sum((x - w[i]).dot(omega.T) ** 2, 1)
         distance = _squared_euclidean(x.dot(omega.T), w.dot(omega.T))
+
         return distance
+
+    def fit(self, x, y, test_x, test_y):
+        """Fit the GLVQ model to the given training data and parameters using
+        l-bfgs-b.
+
+        Parameters
+        ----------
+        x : array-like, shape = [n_samples, n_features]
+          Training vector, where n_samples in the number of samples and
+          n_features is the number of features.
+        y : array, shape = [n_samples]
+          Target values (integers in classification, real numbers in
+          regression)
+
+        Returns
+        --------
+        self
+        """
+        x, y, random_state = self._validate_train_parms(x, y)
+        if len(np.unique(y)) == 1:
+            raise ValueError("fitting " + type(
+                self).__name__ + " with only one class is not possible")
+        epoch_MZE_MAE_dic = self._optimize(x, y, random_state, test_x, test_y)
+        return self, epoch_MZE_MAE_dic
 
     def score(self, x, y):
         count = 0
@@ -450,7 +461,7 @@ class OGmlvqModel(GlvqModel):
         ab_accuracy = ab_count / len(x)
         MAE = MAE_count / len(x)
 
-        return accuracy, ab_accuracy, MAE, self.max_iter
+        return accuracy, ab_accuracy, MAE
 
     def project(self, x, dims, print_variance_covered=False):
         """Projects the data input data X using the relevance matrix of trained
