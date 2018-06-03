@@ -127,27 +127,30 @@ class AOGmlvqModel(GlvqModel):
         # list_dist2 = np.sqrt(list_square_dist2)
         # print(list_dist2)
 
-        correct_cls_min = label - k_size
-        correct_cls_max = label + k_size
-        if correct_cls_min < self.ranking_range[0]:
-            correct_cls_min = self.ranking_range[0]
-        if correct_cls_max > self.ranking_range[1]:
-            correct_cls_max = self.ranking_range[1]
+        class_list = self.class_list_dict[label]
+        prototype_list = self.prototype_list_dict[label]
 
-        correct_ranking = np.array(list(range(int(correct_cls_min), int(correct_cls_max) + 1)))
-
-        # all classes with True and False
-        class_list = np.zeros((len(self.c_w_)//self.prototypes_per_class), dtype=bool)
-        class_list[correct_ranking] = True
-
-        # print(list_dist, label, self.c_w_)
-        # correct kernel class
-        correct_idx0 = correct_cls_min * self.prototypes_per_class
-        correct_idx1 = correct_cls_max * self.prototypes_per_class + self.prototypes_per_class
-        proto_correct_list = np.array(list(range(int(correct_idx0), int(correct_idx1))))
-
-        prototype_list = np.zeros((len(self.c_w_)), dtype=bool)
-        prototype_list[proto_correct_list] = True
+        # correct_cls_min = label - k_size
+        # correct_cls_max = label + k_size
+        # if correct_cls_min < self.ranking_range[0]:
+        #     correct_cls_min = self.ranking_range[0]
+        # if correct_cls_max > self.ranking_range[1]:
+        #     correct_cls_max = self.ranking_range[1]
+        #
+        # correct_ranking = np.array(list(range(int(correct_cls_min), int(correct_cls_max) + 1)))
+        #
+        # # all classes with True and False
+        # class_list = np.zeros((len(self.c_w_)//self.prototypes_per_class), dtype=bool)
+        # class_list[correct_ranking] = True
+        #
+        # # print(list_dist, label, self.c_w_)
+        # # correct kernel class
+        # correct_idx0 = correct_cls_min * self.prototypes_per_class
+        # correct_idx1 = correct_cls_max * self.prototypes_per_class + self.prototypes_per_class
+        # proto_correct_list = np.array(list(range(int(correct_idx0), int(correct_idx1))))
+        #
+        # prototype_list = np.zeros((len(self.c_w_)), dtype=bool)
+        # prototype_list[proto_correct_list] = True
 
         D = list_dist[np.invert(prototype_list)].mean()
         # print(class_list)
@@ -172,7 +175,7 @@ class AOGmlvqModel(GlvqModel):
                     max_error_cls = abs(cls_ind - label)
             cls_ind += 1
         # print(W_plus, W_minus)
-        return W_plus, W_minus, max_error_cls, D
+        return W_plus, W_minus, self.max_error_cls_dict[label], D
 
     # update prototype a and b, and omega
     def update_prot_and_omega(self, w_plus, w_minus, label, max_error_cls, datapoint, lr_pt, lr_om, D):
@@ -370,6 +373,40 @@ class AOGmlvqModel(GlvqModel):
 
         self.gaussian_sd = self.gaussian_sd * math.sqrt(nb_features)
         self.init_w = self.w_.copy()
+
+        self.max_error_cls_dict = {}
+        self.class_list_dict = {}
+        self.prototype_list_dict = {}
+
+        for key in self.ranking_list:
+            correct_cls_min = key - self.kernel_size
+            correct_cls_max = key + self.kernel_size
+            if correct_cls_min < self.ranking_range[0]:
+                correct_cls_min = self.ranking_range[0]
+            if correct_cls_max > self.ranking_range[1]:
+                correct_cls_max = self.ranking_range[1]
+
+            correct_ranking = np.array(list(range(int(correct_cls_min), int(correct_cls_max) + 1)))
+
+            # all classes with True and False
+            class_list = np.ones((len(self.c_w_) // self.prototypes_per_class), dtype=bool)
+            class_list[correct_ranking] = False
+            wrong_ranking = self.ranking_list[class_list]
+            self.max_error_cls_dict[key] = wrong_ranking.max() - wrong_ranking.min()
+
+            # all classes with True and False
+            class_list = np.invert(class_list)
+            self.class_list_dict[key] = class_list
+
+            # correct kernel class
+            correct_idx0 = correct_cls_min * self.prototypes_per_class
+            correct_idx1 = correct_cls_max * self.prototypes_per_class + self.prototypes_per_class
+            proto_correct_list = np.array(list(range(int(correct_idx0), int(correct_idx1))))
+
+            prototype_list = np.zeros((len(self.c_w_)), dtype=bool)
+            prototype_list[proto_correct_list] = True
+            self.prototype_list_dict[key] = prototype_list
+
         # start the algorithm
         stop_flag = False
         epoch_index = 0
@@ -383,7 +420,7 @@ class AOGmlvqModel(GlvqModel):
                 index = random.randrange(len(x))
                 datapoint = np.array([x[index]])
                 label = y[index]
-                W_plus, W_minus, max_error_cls, D = self.find_prototype(datapoint, label, self.kernel_size)
+                W_plus, W_minus, max_error_cls,  D = self.find_prototype(datapoint, label, self.kernel_size)
                 self.update_prot_and_omega(W_plus, W_minus, label, max_error_cls, datapoint, lr_pt, lr_om, D)
                 # normalize the omega
                 self.omega_ /= math.sqrt(
