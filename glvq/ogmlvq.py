@@ -133,6 +133,7 @@ class OGmlvqModel(GlvqModel):
         cls_ind = 0
         W_plus = []
         W_minus = []
+        max_error_cls = 0
         for correct_cls in class_list:
             ind0 = cls_ind * self.prototypes_per_class
             ind1 = ind0 + self.prototypes_per_class
@@ -140,14 +141,16 @@ class OGmlvqModel(GlvqModel):
             argmin_idx = np.argmin(trg_class_dis, axis=0)
             min_val = trg_class_dis[argmin_idx]
             min_idx = argmin_idx + ind0
-            # print(min_idx, min_val)
+
             if correct_cls:
                 W_plus.append([min_idx, min_val])
             elif min_val <= D:
                 W_minus.append([min_idx, min_val])
+                if abs(cls_ind - label) > max_error_cls:
+                    max_error_cls = abs(cls_ind - label)
             cls_ind += 1
-        # print(W_plus, W_minus)
-        return W_plus, W_minus, self.max_error_cls_dict[label], D
+
+        return W_plus, W_minus, max_error_cls, D
 
     # update prototype a and b, and omega
     def update_prot_and_omega(self, w_plus, w_minus, label, max_error_cls, datapoint, lr_pt, lr_om, D):
@@ -308,7 +311,6 @@ class OGmlvqModel(GlvqModel):
         self.gaussian_sd = self.gaussian_sd * math.sqrt(nb_features)
         self.init_w = self.w_.copy()
 
-        self.max_error_cls_dict = {}
         self.class_list_dict = {}
         self.prototype_list_dict = {}
 
@@ -323,13 +325,8 @@ class OGmlvqModel(GlvqModel):
             correct_ranking = np.array(list(range(int(correct_cls_min), int(correct_cls_max) + 1)))
 
             # all classes with True and False
-            class_list = np.ones((len(self.c_w_) // self.prototypes_per_class), dtype=bool)
-            class_list[correct_ranking] = False
-            wrong_ranking = self.ranking_list[class_list]
-            self.max_error_cls_dict[key] = wrong_ranking.max() - wrong_ranking.min()
-
-            # all classes with True and False
-            class_list = np.invert(class_list)
+            class_list = np.zeros((len(self.c_w_) // self.prototypes_per_class), dtype=bool)
+            class_list[correct_ranking] = True
             self.class_list_dict[key] = class_list
 
             # correct kernel class
