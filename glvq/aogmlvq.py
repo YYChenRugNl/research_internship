@@ -175,7 +175,7 @@ class AOGmlvqModel(GlvqModel):
                     max_error_cls = abs(cls_ind - label)
             cls_ind += 1
         # print(W_plus, W_minus)
-        return W_plus, W_minus, self.max_error_cls_dict[label], D
+        return W_plus, W_minus, max_error_cls, D
 
     # update prototype a and b, and omega
     def update_prot_and_omega(self, w_plus, w_minus, label, max_error_cls, datapoint, lr_pt, lr_om, D):
@@ -388,14 +388,9 @@ class AOGmlvqModel(GlvqModel):
 
             correct_ranking = np.array(list(range(int(correct_cls_min), int(correct_cls_max) + 1)))
 
-            # all classes with True and False
-            class_list = np.ones((len(self.c_w_) // self.prototypes_per_class), dtype=bool)
-            class_list[correct_ranking] = False
-            wrong_ranking = self.ranking_list[class_list]
-            self.max_error_cls_dict[key] = wrong_ranking.max() - wrong_ranking.min()
-
-            # all classes with True and False
-            class_list = np.invert(class_list)
+            # # all classes with True and False
+            class_list = np.zeros((len(self.c_w_) // self.prototypes_per_class), dtype=bool)
+            class_list[correct_ranking] = True
             self.class_list_dict[key] = class_list
 
             # correct kernel class
