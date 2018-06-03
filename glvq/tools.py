@@ -152,3 +152,6 @@ class CustomTool():
     def get_iteration(self, gtol, initial_lr, final_lr, max_iter=2500):
         return min(int(initial_lr / (final_lr * gtol) + 1 - 1 / gtol), max_iter)
 
+    def set_iteration(self, iter, initial_lr, final_lr):
+        gtol = (initial_lr - final_lr)/((iter-1)*final_lr)
+        return gtol

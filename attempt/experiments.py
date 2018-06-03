@@ -16,9 +16,11 @@ raw_data = {'iterations': [],
 df = pd.DataFrame(raw_data, columns=['iterations', 'nb_prototypes', 'k_size', 'sigma', 'MZE', 'MAE'])
 save_path = '../p_results/p_results_' + str(int(time.time())) + '.csv'
 
-datapath = 'C:/Users/Yukki/Desktop/RIntern/data_ordinal.csv'
+# datapath = 'C:/Users/Yukki/Desktop/RIntern/data_ordinal.csv'
+datapath = '../benchmark_datasets/Machine-Cpu/machine.data'
 tools = CustomTool()
-real_data, real_label = tools.read_from_medical_data(datapath)
+# real_data, real_label = tools.read_from_medical_data(datapath)
+real_data, real_label = tools.read_from_file(datapath)
 
 cross_validation = 10
 real_data, real_label = tools.up_sample(real_data, real_label)
@@ -27,16 +29,15 @@ train_list, test_list = tools.cross_validation(real_data, real_label, cross_vali
 # gtol_list = [0.05, 0.02, 0.01, 0.005]
 number_prototype_list = [1, 2, 3, 4, 5]
 kernel_size = [0, 1, 2]
-sigma1_list = [0.2, 0.5, 1]
-sigma2_list = [0.2, 0.5, 1]
-sigma3_list = [0.2, 0.5, 1]
+# sigma1_list = [0.2, 0.5, 1]
+sigma1_list = [50]
 
 lr_prototype = 0.1
 lr_omega = 0.05
 final_lr = 0.01
-
-max_iteration = tools.get_iteration(gtol=0.01, initial_lr=lr_prototype, final_lr=final_lr)
-max_iteration = 30
+max_iteration = 50
+gtol = tools.set_iteration(iter=max_iteration, initial_lr=lr_prototype, final_lr=final_lr)
+print('gtol', gtol)
 
 # p version
 start = time.time()
@@ -55,8 +56,8 @@ for number_prototype in number_prototype_list:
                 # plot2d(gmlvq, test_data, test_label, 1, 'gmlvq')
                 # accuracy += gmlvq.score(test_data, test_label)
 
-                ogmlvq = OGmlvqModel(number_prototype, kernel_size=k, gtol=0.005, lr_prototype=0.1, lr_omega=0.05, final_lr=0.01,
-                                     batch_flag=False, max_iter=max_iteration, sigma=sigma, n_interval=10)
+                ogmlvq = OGmlvqModel(number_prototype, kernel_size=k, gtol=gtol, lr_prototype=lr_prototype, lr_omega=lr_omega, final_lr=final_lr,
+                                     batch_flag=False, sigma=sigma, n_interval=5)
                 ogmlvq, epoch_MZE_MAE_dic = ogmlvq.fit(train_data, train_label, test_data, test_label)
                 MZE_MAE_dic_list.append(epoch_MZE_MAE_dic)
                 # plot2d(ogmlvq, test_data, test_label, 1, 'ogmlvq', no_index=True)

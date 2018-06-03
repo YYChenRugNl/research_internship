@@ -193,11 +193,17 @@ class AOGmlvqModel(GlvqModel):
 
         alpha_plus = 0
         alpha_minus = 0
+        alpha_plus_list = []
+        alpha_minus_list = []
         for pt_pair in pt_pairs:
             alpha_distance_plus, alpha_plus, alpha_distance_plus_ranking = self.alpha_dist_plus(pt_pair, label)
             alpha_distance_minus, alpha_minus, alpha_distance_minus_ranking, alpha_minus_distance_square = self.alpha_dist_minus(pt_pair, label, max_error_cls, D)
             sum_alpha_distance_plus += alpha_distance_plus
             sum_alpha_distance_minus += alpha_distance_minus
+
+            # save current alpha plus and minus
+            alpha_plus_list.append(alpha_plus)
+            alpha_minus_list.append(alpha_minus)
 
             # to update sigma
             sum_alpha_distance_plus_ranking += alpha_distance_plus_ranking
@@ -206,13 +212,16 @@ class AOGmlvqModel(GlvqModel):
 
         squared_sum_alpha_plus_minus = (sum_alpha_distance_plus+sum_alpha_distance_minus) * (sum_alpha_distance_plus+sum_alpha_distance_minus)
         gamma_plus = 2*sum_alpha_distance_minus/squared_sum_alpha_plus_minus
-        mu_plus = alpha_plus * gamma_plus
+        gamma_minus = 2 * sum_alpha_distance_plus / squared_sum_alpha_plus_minus
 
         sum_delta_omega_plus = np.zeros(self.omega_.shape)
         sum_delta_omega_minus = np.zeros(self.omega_.shape)
 
-        for pt_pair in pt_pairs:
-            gamma_minus = 2 * sum_alpha_distance_plus/squared_sum_alpha_plus_minus
+        for i in range(len(pt_pairs)):
+            pt_pair = pt_pairs[i]
+            alpha_plus = alpha_plus_list[i]
+            alpha_minus = alpha_minus_list[i]
+            mu_plus = alpha_plus * gamma_plus
             mu_minus = (1 - math.sqrt(pt_pair[1][1])/(2*self.sigma3*self.sigma3))*alpha_minus * gamma_minus
 
             pid_correct = pt_pair[0][0]
@@ -224,15 +233,12 @@ class AOGmlvqModel(GlvqModel):
             delta_wrong_prot = -2 * mu_minus * diff_wrong.dot(self.omega_.T.dot(self.omega_))
 
             diff_mtx_correct = diff_correct.T.dot(diff_correct)
-            delta_omega_plus = 2 * mu_plus * self.omega_.dot(diff_mtx_correct)
+            delta_omega_plus = mu_plus * self.omega_.dot(diff_mtx_correct)
             sum_delta_omega_plus += delta_omega_plus
 
             diff_mtx_wrong = diff_wrong.T.dot(diff_wrong)
-            delta_omega_minus = 2 * mu_minus * self.omega_.dot(diff_mtx_wrong)
+            delta_omega_minus = mu_minus * self.omega_.dot(diff_mtx_wrong)
             sum_delta_omega_minus += delta_omega_minus
-
-            pid_correct = pt_pair[0][0]
-            pid_wrong = pt_pair[1][0]
 
             self.w_[pid_correct] = self.w_[pid_correct] + delta_correct_prot * lr_pt
             self.w_[pid_wrong] = self.w_[pid_wrong] + delta_wrong_prot * lr_pt
