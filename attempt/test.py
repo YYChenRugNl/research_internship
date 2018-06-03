@@ -61,9 +61,9 @@ def test():
 
     number_sample = 50
     normalize_flag = True
-    # toy_data, toy_label = tools.artificial_data(number_sample, list_center, list_label, list_matrix, normalize_flag)
-    toy_data, toy_label = tools.up_sample(toy_data, toy_label)
-    toy_train_list, toy_test_list = tools.cross_validation(toy_data, toy_label, 2)
+    toy_data, toy_label = tools.artificial_data(number_sample, list_center, list_label, list_matrix, normalize_flag)
+    # toy_data, toy_label = tools.up_sample(toy_data, toy_label)
+    toy_train_list, toy_test_list = tools.cross_validation(toy_data, toy_label, 5)
 
     # print(toy_data)
     # print(toy_label)
@@ -88,25 +88,25 @@ def test():
                 # plot2d(gmlvq, test_data, test_label, 1, 'gmlvq')
                 # accuracy += gmlvq.score(test_data, test_label)
 
-                ogmlvq = OGmlvqModel(1, kernel_size=1, gtol=0.05, lr_prototype=0.1, lr_omega=0.05, final_lr=0.01, batch_flag=False)
-                ogmlvq.fit(train_data, train_label)
-                # plot2d(ogmlvq, test_data, test_label, 1, 'ogmlvq', no_index=True)
-                score, ab_score, MAE, max_iters = ogmlvq.score(test_data, test_label)
-                ab_accuracy += ab_score
-                MAE_sum += MAE
-                print('ogmlvq classification accuracy:', score)
-                print('ogmlvq classification ab_accuracy:', ab_score)
-                print('ogmlvq classification MAE:', MAE)
-
-                # aogmlvq = AOGmlvqModel(1, kernel_size=1, gtol=0.05, lr_prototype=0.1, lr_omega=0.05, final_lr=0.01, sigma3=0.5)
-                # aogmlvq.fit(train_data, train_label)
-                # # plot2d(aogmlvq, test_data, test_label, 1, 'aogmlvq', no_index=True)
-                # score, ab_score, MAE = aogmlvq.score(test_data, test_label)
+                # ogmlvq = OGmlvqModel(1, kernel_size=1, gtol=0.05, lr_prototype=0.1, lr_omega=0.05, final_lr=0.01, batch_flag=False)
+                # ogmlvq.fit(train_data, train_label)
+                # # plot2d(ogmlvq, test_data, test_label, 1, 'ogmlvq', no_index=True)
+                # score, ab_score, MAE, max_iters = ogmlvq.score(test_data, test_label)
                 # ab_accuracy += ab_score
                 # MAE_sum += MAE
-                # print('aogmlvq classification accuracy:', score)
-                # print('aogmlvq classification ab_accuracy:', ab_score)
-                # print('aogmlvq classification MAE:', MAE)
+                # print('ogmlvq classification accuracy:', score)
+                # print('ogmlvq classification ab_accuracy:', ab_score)
+                # print('ogmlvq classification MAE:', MAE)
+
+                aogmlvq = AOGmlvqModel(1, kernel_size=0, gtol=0.05, lr_prototype=0.1, lr_omega=0.05, final_lr=0.01, sigma3=0.5)
+                aogmlvq.fit(train_data, train_label)
+                # plot2d(aogmlvq, test_data, test_label, 1, 'aogmlvq', no_index=True)
+                score, ab_score, MAE = aogmlvq.score(train_data, train_label)
+                ab_accuracy += ab_score
+                MAE_sum += MAE
+                print('aogmlvq classification accuracy:', score)
+                print('aogmlvq classification ab_accuracy:', ab_score)
+                print('aogmlvq classification MAE:', MAE)
 
             average_accuracy = ab_accuracy/len(toy_train_list)
             average_MAE = MAE_sum/len(toy_train_list)
@@ -118,5 +118,5 @@ def test():
         plt.show()
 
 
-cProfile.run('test()')
-# test()
+# cProfile.run('test()')
+test()
