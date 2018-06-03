@@ -318,7 +318,7 @@ class AOGmlvqModel(GlvqModel):
 
         return sum_cost
 
-    def _optimize(self, x, y, random_state, test_x, test_y):
+    def _optimize(self, x, y, random_state, test_x, test_y, trace_proto):
         if not isinstance(self.regularization, float) or self.regularization < 0:
             raise ValueError("regularization must be a positive float ")
         nb_prototypes, nb_features = self.w_.shape
@@ -383,6 +383,7 @@ class AOGmlvqModel(GlvqModel):
         lr_pt = self.lr_prototype
         lr_om = self.lr_omega
         epoch_MZE_MAE_dic = {}
+        proto_history_list = []
 
         for i in range(max_epoch):
             for j in range(len(x)):
@@ -398,6 +399,8 @@ class AOGmlvqModel(GlvqModel):
             if (i+1) % self.n_interval == 0 or (i+1) == max_epoch:
                 score, ab_score, MAE = self.score(test_x, test_y)
                 epoch_MZE_MAE_dic[i+1] = [1-ab_score, MAE]
+                if trace_proto:
+                    proto_history_list.append(self.w_.copy())
 
             # calculate and print costs of all epochs
             if self.cost_trace:
@@ -415,7 +418,10 @@ class AOGmlvqModel(GlvqModel):
 
             lr_pt = self.lr_prototype / (1 + self.gtol * (epoch_index - 1))
             lr_om = self.lr_omega / (1 + self.gtol * (epoch_index - 1))
-        return epoch_MZE_MAE_dic
+        if trace_proto:
+            return epoch_MZE_MAE_dic, proto_history_list
+        else:
+            return epoch_MZE_MAE_dic
 
     def _compute_distance(self, x, w=None, omega=None):
         if w is None:
@@ -425,7 +431,7 @@ class AOGmlvqModel(GlvqModel):
         distance = _squared_euclidean(x.dot(omega.T), w.dot(omega.T))
         return distance
 
-    def fit(self, x, y, test_x, test_y):
+    def fit(self, x, y, test_x, test_y, trace_proto=False):
         """Fit the GLVQ model to the given training data and parameters using
         l-bfgs-b.
 
@@ -446,8 +452,12 @@ class AOGmlvqModel(GlvqModel):
         if len(np.unique(y)) == 1:
             raise ValueError("fitting " + type(
                 self).__name__ + " with only one class is not possible")
-        epoch_MZE_MAE_dic = self._optimize(x, y, random_state, test_x, test_y)
-        return self, epoch_MZE_MAE_dic
+        if trace_proto:
+            epoch_MZE_MAE_dic, proto_history_list = self._optimize(x, y, random_state, test_x, test_y, trace_proto)
+            return self, epoch_MZE_MAE_dic, proto_history_list
+        else:
+            epoch_MZE_MAE_dic = self._optimize(x, y, random_state, test_x, test_y, trace_proto)
+            return self, epoch_MZE_MAE_dic
 
     def score(self, x, y):
         count = 0

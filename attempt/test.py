@@ -17,10 +17,10 @@ def test():
     datapath = '../benchmark_datasets/Machine-Cpu/machine.data'
     # datapath = 'C:/Users/Yukki/Desktop/RIntern/data_ordinal.csv'
     tools = CustomTool()
-    # toy_data, toy_label = tools.read_from_abalone()
+    toy_data, toy_label = tools.read_from_abalone()
     # toy_data, toy_label = tools.read_from_bank()
     # toy_data, toy_label = tools.read_from_medical_data(datapath)
-    toy_data, toy_label = tools.read_from_file(datapath)
+    # toy_data, toy_label = tools.read_from_file(datapath)
 
     # toy_label[toy_label > 0.666] = 2
     # toy_label[(toy_label > 0.333) & (toy_label <= 0.666)] = 1
@@ -52,14 +52,14 @@ def test():
     # list_center = [[0, 0], [4, 0], [8, 0], [8, 4], [4, 4], [0, 4]]
     # list_label = [0, 1, 2, 3, 4, 5]
     # list_matrix = [basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_matrix]
-
+    #
     # list_center = [[0, 0], [4, 0], [8, 0], [12, 0], [12, 4], [8, 4], [4, 4], [0, 4]]
     # list_label = [0, 1, 2, 3, 4, 5, 6, 7]
     # list_matrix = [basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_matrix]
 
-    list_center = [[0, 0], [4, 0], [4, 4], [0, 4]]
-    list_label = [0, 1, 2, 3]
-    list_matrix = [y_matrix, basic_matrix, basic_matrix, y_matrix]
+    # list_center = [[0, 0], [4, 0], [4, 4], [0, 4]]
+    # list_label = [0, 1, 2, 3]
+    # list_matrix = [y_matrix, basic_matrix, basic_matrix, y_matrix]
 
     number_sample = 50
     normalize_flag = True
@@ -96,11 +96,11 @@ def test():
                 # # plot2d(ogmlvq, test_data, test_label, proto_history_list, figure=1, prototype_count=number_prototype, title='p_ogmlvq', no_index=True)
                 # MZE_MAE_dic_list.append(epoch_MZE_MAE_dic)
 
-                aogmlvq = AOGmlvqModel(number_prototype, kernel_size=1, gtol=0.01, lr_prototype=0.1, lr_omega=0.05,
-                                       final_lr=0.01, sigma3=1, n_interval=5, max_iter=2500, sigma1=1.5, sigma2=0.2)
-                aogmlvq, epoch_MZE_MAE_dic = aogmlvq.fit(train_data, train_label, test_data, test_label)
-                # plot2d(aogmlvq, test_data, test_label, figure=1, prototype_count=number_prototype,
-                #        title='p_ogmlvq', no_index=True)
+                aogmlvq = AOGmlvqModel(number_prototype, kernel_size=1, gtol=0.05, lr_prototype=0.1, lr_omega=0.05,
+                                       final_lr=0.01, sigma3=1, n_interval=5, max_iter=2500, sigma1=0.5, sigma2=0.5)
+                aogmlvq, epoch_MZE_MAE_dic, proto_history_list = aogmlvq.fit(train_data, train_label, test_data, test_label, trace_proto=True)
+                plot2d(aogmlvq, test_data, test_label,proto_history_list, figure=1, prototype_count=number_prototype,
+                       title='a_ogmlvq', no_index=True)
                 MZE_MAE_dic_list.append(epoch_MZE_MAE_dic)
 
             key_list = MZE_MAE_dic_list[0].keys()
