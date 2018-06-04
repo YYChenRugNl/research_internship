@@ -22,20 +22,28 @@ tools = CustomTool()
 # real_data, real_label = tools.read_from_medical_data(datapath)
 real_data, real_label = tools.read_from_file(datapath)
 
+# basic_matrix = [[0.1, 0], [0, 0.1]]
+# list_center = [[0, 0], [4, 0], [8, 0], [12, 0], [12, 4], [8, 4], [4, 4], [0, 4]]
+# list_label = [0, 1, 2, 3, 4, 5, 6, 7]
+# list_matrix = [basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_matrix]
+# number_sample = 50
+# normalize_flag = True
+# real_data, real_label = tools.artificial_data(number_sample, list_center, list_label, list_matrix, normalize_flag)
+
 cross_validation = 10
-real_data, real_label = tools.up_sample(real_data, real_label)
+# real_data, real_label = tools.up_sample(real_data, real_label)
 train_list, test_list = tools.cross_validation(real_data, real_label, cross_validation)
 
 # gtol_list = [0.05, 0.02, 0.01, 0.005]
-number_prototype_list = [1, 2, 3, 4, 5]
-kernel_size = [0, 1, 2]
+number_prototype_list = [1, 2]
+kernel_size = [1]
 # sigma1_list = [0.2, 0.5, 1]
-sigma1_list = [50]
+sigma1_list = [0.2, 0.5]
 
 lr_prototype = 0.1
 lr_omega = 0.05
 final_lr = 0.01
-max_iteration = 50
+max_iteration = 200
 gtol = tools.set_iteration(iter=max_iteration, initial_lr=lr_prototype, final_lr=final_lr)
 print('gtol', gtol)
 

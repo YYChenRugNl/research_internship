@@ -124,7 +124,8 @@ class AOGmlvqModel(GlvqModel):
         class_list = self.class_list_dict[label]
         prototype_list = self.prototype_list_dict[label]
 
-        D = list_dist[np.invert(prototype_list)].mean()
+        # D = list_dist[np.invert(prototype_list)].mean()
+        D = np.median(list_dist[np.invert(prototype_list)])
 
         # collection set of closest prototype from each correct class
         # collection set of closest prototype from each wrong class
@@ -345,7 +346,7 @@ class AOGmlvqModel(GlvqModel):
                     "found=%d\n"
                     "expected=%d" % (self.omega_.shape[1], nb_features))
 
-        self.gaussian_sd = self.gaussian_sd * math.sqrt(nb_features)
+        # self.gaussian_sd = self.gaussian_sd * math.sqrt(nb_features)
         self.init_w = self.w_.copy()
 
         self.class_list_dict = {}
@@ -418,6 +419,7 @@ class AOGmlvqModel(GlvqModel):
 
             lr_pt = self.lr_prototype / (1 + self.gtol * (epoch_index - 1))
             lr_om = self.lr_omega / (1 + self.gtol * (epoch_index - 1))
+
         if trace_proto:
             return epoch_MZE_MAE_dic, proto_history_list
         else:

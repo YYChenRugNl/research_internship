@@ -18,10 +18,10 @@ from sklearn.utils.validation import check_is_fitted
 
 def _squared_euclidean(a, b=None):
     if b is None:
-        d = np.sum(a ** 2, 1)[np.newaxis].T + np.sum(a ** 2, 1) - 2 * a.dot(
+        d = np.sum(a * a, 1)[np.newaxis].T + np.sum(a * a, 1) - 2 * a.dot(
             a.T)
     else:
-        d = np.sum(a ** 2, 1)[np.newaxis].T + np.sum(b ** 2, 1) - 2 * a.dot(
+        d = np.sum(a * a, 1)[np.newaxis].T + np.sum(b * b, 1) - 2 * a.dot(
             b.T)
     return np.maximum(d, 0)
 

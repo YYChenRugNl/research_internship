@@ -50,14 +50,15 @@ class CustomTool():
         return self.normalize_attr(attr), labels
 
     def normalize_attr(self, toy_data):
-        rows, dimen = toy_data.shape
+        process_data = toy_data.copy()
+        rows, dimen = process_data.shape
 
         for i in range(dimen):
-            mean = toy_data[:, i].mean()
-            std = toy_data[:, i].std()
-            toy_data[:, i] = (toy_data[:, i] - mean) / std
+            mean = process_data[:, i].mean()
+            std = process_data[:, i].std()
+            process_data[:, i] = (process_data[:, i] - mean) / std
 
-        return toy_data
+        return process_data
 
     def relabel_data(self, labels, n_classes):
         process_data = labels.copy()

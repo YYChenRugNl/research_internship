@@ -195,6 +195,11 @@ class OGmlvqModel(GlvqModel):
                 self.w_[pid_correct] = self.w_[pid_correct] + delta_correct_prot * lr_pt
                 self.w_[pid_wrong] = self.w_[pid_wrong] + delta_wrong_prot * lr_pt
                 self.omega_ = self.omega_ - delta_omega * lr_om
+
+                # normalize the omega
+                self.omega_ /= math.sqrt(
+                    np.sum(np.diag(self.omega_.T.dot(self.omega_))))
+
                 # print(self.w_)
                 # print(self.omega_)
 
@@ -371,9 +376,7 @@ class OGmlvqModel(GlvqModel):
                     label = y[index]
                     W_plus, W_minus, max_error_cls, D = self.find_prototype(datapoint, label, self.kernel_size)
                     self.update_prot_and_omega(W_plus, W_minus, label, max_error_cls, datapoint, lr_pt, lr_om, D)
-                    # normalize the omega
-                    self.omega_ /= math.sqrt(
-                        np.sum(np.diag(self.omega_.T.dot(self.omega_))))
+
 
             if (i+1) % self.n_interval == 0 or (i+1) == max_epoch:
                 score, ab_score, MAE = self.score(test_x, test_y)

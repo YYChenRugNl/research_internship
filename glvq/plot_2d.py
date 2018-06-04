@@ -22,7 +22,7 @@ def plot2d(model, x, y, proto_history_list=[], figure=1, title="", prototype_cou
     model.init_w, model.c_w_ = validation.check_X_y(model.init_w, model.c_w_)
     model.w_, model.c_w_ = validation.check_X_y(model.w_, model.c_w_)
     dim = 2
-    f = plt.figure(figure, figsize=(20, 20))
+    f = plt.figure(figure, figsize=(10, 10))
     f.suptitle(title)
     pred = model.predict(x)
 
