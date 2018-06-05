@@ -132,7 +132,6 @@ class AOGmlvqModel(GlvqModel):
         cls_ind = 0
         W_plus = []
         W_minus = []
-        max_error_cls = 0
         for correct_cls in class_list:
             ind0 = cls_ind * self.prototypes_per_class
             ind1 = ind0 + self.prototypes_per_class
@@ -145,11 +144,21 @@ class AOGmlvqModel(GlvqModel):
                 W_plus.append([min_idx, min_val])
             elif min_val <= D:
                 W_minus.append([min_idx, min_val])
-                if abs(cls_ind-label) > max_error_cls:
-                    max_error_cls = abs(cls_ind-label)
             cls_ind += 1
 
-        return W_plus, W_minus, max_error_cls, D
+        number_pair = min(len(W_plus), len(W_minus))
+        W_plus.sort(key=lambda x: x[1], reverse=False)
+        W_minus.sort(key=lambda x: x[1], reverse=False)
+        selected_w_plus = W_plus[0:number_pair]
+        selected_w_minus = W_minus[0:number_pair]
+
+        max_error_cls = 0
+        for incorrect_proto in selected_w_minus:
+            temp_cls = incorrect_proto[0]//self.prototypes_per_class
+            if abs(temp_cls-label) > max_error_cls:
+                max_error_cls = abs(temp_cls-label)
+
+        return selected_w_plus, selected_w_minus, max_error_cls, D
 
     # update prototype a and b, and omega
     def update_prot_and_omega(self, w_plus, w_minus, label, max_error_cls, datapoint, lr_pt, lr_om, D):
@@ -223,7 +232,7 @@ class AOGmlvqModel(GlvqModel):
             alpha_plus = alpha_plus_list[i]
             alpha_minus = alpha_minus_list[i]
             mu_plus = alpha_plus * gamma_plus
-            mu_minus = (1 - math.sqrt(pt_pair[1][1])/(2*self.sigma3*self.sigma3))*alpha_minus * gamma_minus
+            mu_minus = (1 - pt_pair[1][1]/(2*self.sigma3*self.sigma3))*alpha_minus * gamma_minus
 
             pid_correct = pt_pair[0][0]
             pid_wrong = pt_pair[1][0]
@@ -235,10 +244,12 @@ class AOGmlvqModel(GlvqModel):
 
             diff_mtx_correct = diff_correct.T.dot(diff_correct)
             delta_omega_plus = mu_plus * self.omega_.dot(diff_mtx_correct)
+            # delta_omega_plus = mu_plus * self.omega_*diff_correct*diff_correct.T
             sum_delta_omega_plus += delta_omega_plus
 
             diff_mtx_wrong = diff_wrong.T.dot(diff_wrong)
             delta_omega_minus = mu_minus * self.omega_.dot(diff_mtx_wrong)
+            # delta_omega_minus = mu_minus * self.omega_*diff_wrong*diff_wrong.T
             sum_delta_omega_minus += delta_omega_minus
 
             self.w_[pid_correct] = self.w_[pid_correct] + delta_correct_prot * lr_pt
@@ -263,7 +274,7 @@ class AOGmlvqModel(GlvqModel):
 
         alpha_plus = math.exp(- ranking_diff_correct*ranking_diff_correct / (2 * self.sigma1 * self.sigma1))
 
-        alpha_distance_plus = alpha_plus * math.sqrt(distance_correct)
+        alpha_distance_plus = alpha_plus * distance_correct
         alpha_distance_plus_ranking = ranking_diff_correct * ranking_diff_correct * alpha_distance_plus
 
         return alpha_distance_plus, alpha_plus, alpha_distance_plus_ranking
@@ -276,9 +287,13 @@ class AOGmlvqModel(GlvqModel):
                       * \
                       math.exp(- distance_wrong / (2 * self.sigma3*self.sigma3))
 
-        alpha_distance_minus = alpha_minus * math.sqrt(distance_wrong)
+        # alpha_minus = math.exp(-(max_error_cls - ranking_diff_wrong)*(max_error_cls - ranking_diff_wrong) / (2*self.sigma2*self.sigma2)) \
+        #               * \
+        #               math.exp(- distance_wrong*distance_wrong / (2 * self.sigma3*self.sigma3))
+
+        alpha_distance_minus = alpha_minus * distance_wrong
         alpha_distance_minus_ranking = alpha_distance_minus * (max_error_cls - ranking_diff_wrong)*(max_error_cls - ranking_diff_wrong)
-        alpha_minus_distance_square = alpha_minus * distance_wrong
+        alpha_minus_distance_square = alpha_minus * distance_wrong * distance_wrong
 
         return alpha_distance_minus, alpha_minus, alpha_distance_minus_ranking, alpha_minus_distance_square
 
