@@ -132,19 +132,22 @@ class AOGmlvqModel(GlvqModel):
         cls_ind = 0
         W_plus = []
         W_minus = []
+        # find correct prototypes
         for correct_cls in class_list:
-            ind0 = cls_ind * self.prototypes_per_class
-            ind1 = ind0 + self.prototypes_per_class
-            trg_class_dis = list_dist[ind0:ind1]
-            argmin_idx = np.argmin(trg_class_dis, axis=0)
-            min_val = trg_class_dis[argmin_idx]
-            min_idx = argmin_idx + ind0
-
             if correct_cls:
+                ind0 = cls_ind * self.prototypes_per_class
+                ind1 = ind0 + self.prototypes_per_class
+                trg_class_dis = list_dist[ind0:ind1]
+                argmin_idx = np.argmin(trg_class_dis, axis=0)
+                min_val = trg_class_dis[argmin_idx]
+                min_idx = argmin_idx + ind0
                 W_plus.append([min_idx, min_val])
-            elif min_val <= D:
-                W_minus.append([min_idx, min_val])
             cls_ind += 1
+        # find all incorrect prototypes within D
+        for idx in range(len(prototype_list)):
+            correct_proto = prototype_list[idx]
+            if not correct_proto and list_dist[idx] < D:
+                W_minus.append([idx, list_dist[idx]])
 
         number_pair = min(len(W_plus), len(W_minus))
         W_plus.sort(key=lambda x: x[1], reverse=False)
@@ -153,7 +156,7 @@ class AOGmlvqModel(GlvqModel):
         selected_w_minus = W_minus[0:number_pair]
 
         max_error_cls = 0
-        for incorrect_proto in selected_w_minus:
+        for incorrect_proto in W_minus:
             temp_cls = incorrect_proto[0]//self.prototypes_per_class
             if abs(temp_cls-label) > max_error_cls:
                 max_error_cls = abs(temp_cls-label)
@@ -393,12 +396,18 @@ class AOGmlvqModel(GlvqModel):
 
         # start the algorithm
         # stop_flag = False
-        epoch_index = 0
+        sum_cost = 0
+        for index in range(len(x)):
+            datapoint = np.array([x[index]])
+            label = y[index]
+            cost = self._costfunc(datapoint, label, self.kernel_size)
+            sum_cost += cost
         max_epoch = self.max_iter
-        cost_list = np.zeros([max_epoch, 1])
+        cost_list = [sum_cost]
         lr_pt = self.lr_prototype
         lr_om = self.lr_omega
-        epoch_MZE_MAE_dic = {}
+        score, ab_score, MAE = self.score(test_x, test_y)
+        epoch_MZE_MAE_dic = {0: [1 - ab_score, MAE]}
         proto_history_list = []
 
         for i in range(max_epoch):
@@ -418,22 +427,22 @@ class AOGmlvqModel(GlvqModel):
                 if trace_proto:
                     proto_history_list.append(self.w_.copy())
 
-            # calculate and print costs of all epochs
-            if self.cost_trace:
-                sum_cost = 0
-                for index in range(len(x)):
-                    datapoint = np.array([x[index]])
-                    label = y[index]
-                    cost = self._costfunc(datapoint, label, self.kernel_size)
-                    sum_cost += cost
+                # calculate and print costs of all epochs
+                if self.cost_trace:
+                    epoch_index = i
+                    sum_cost = 0
+                    for index in range(len(x)):
+                        datapoint = np.array([x[index]])
+                        label = y[index]
+                        cost = self._costfunc(datapoint, label, self.kernel_size)
+                        sum_cost += cost
 
-                cost_list[epoch_index] = sum_cost
-                epoch_index += 1
-                if epoch_index >= max_epoch:
-                    print(cost_list)
+                    cost_list.append(sum_cost)
+                    if epoch_index >= max_epoch - 1:
+                        print(np.array(cost_list))
 
-            lr_pt = self.lr_prototype / (1 + self.gtol * (epoch_index - 1))
-            lr_om = self.lr_omega / (1 + self.gtol * (epoch_index - 1))
+            lr_pt = self.lr_prototype / (1 + self.gtol * (i - 1))
+            lr_om = self.lr_omega / (1 + self.gtol * (i - 1))
 
         if trace_proto:
             return epoch_MZE_MAE_dic, proto_history_list

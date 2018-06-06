@@ -27,8 +27,8 @@ real_data, real_label = tools.up_sample(real_data, real_label)
 train_list, test_list = tools.cross_validation(real_data, real_label, cross_validation)
 
 # gtol_list = [0.05, 0.02, 0.01, 0.005]
-number_prototype_list = [1, 2, 3, 4, 5]
-kernel_size = [0, 1, 2]
+number_prototype_list = [3]
+kernel_size = [0, 1]
 sigma1_list = [0.2, 0.5, 1]
 sigma2_list = [0.2, 0.5, 1]
 sigma3_list = [0.2, 0.5, 1]
@@ -56,8 +56,9 @@ for number_prototype in number_prototype_list:
                 gmlvq = GmlvqModel(number_prototype)
                 gmlvq.fit(train_data, train_label)
                 # plot2d(gmlvq, test_data, test_label, 1, 'gmlvq')
-                score = gmlvq.score(test_data, test_label)
+                score, MAE = gmlvq.score(test_data, test_label)
                 print('gmlvq classification MZE:', 1-score)
+                print('gmlvq classification MAE:', MAE)
                 accuracy += score
             print('average_accuracy:', accuracy/len(test_list))
 

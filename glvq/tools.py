@@ -155,4 +155,7 @@ class CustomTool():
 
     def set_iteration(self, iter, initial_lr, final_lr):
         gtol = (initial_lr - final_lr)/((iter-1)*final_lr)
+        if gtol >= 1:
+            raise ValueError(
+                " iteration number ({}) is not large enough for learning rate to decrease".format(iter))
         return gtol

@@ -16,6 +16,7 @@ print(__doc__)
 def test():
     datapath = '../benchmark_datasets/Machine-Cpu/machine.data'
     # datapath = 'C:/Users/Yukki/Desktop/RIntern/data_ordinal.csv'
+
     tools = CustomTool()
     # toy_data, toy_label = tools.read_from_abalone()
     # toy_data, toy_label = tools.read_from_bank()
@@ -53,19 +54,21 @@ def test():
     # list_label = [0, 1, 2, 3, 4, 5]
     # list_matrix = [basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_matrix]
     #
-    # list_center = [[0, 0], [4, 0], [8, 0], [12, 0], [12, 4], [8, 4], [4, 4], [0, 4]]
-    # list_label = [0, 1, 2, 3, 4, 5, 6, 7]
-    # list_matrix = [basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_matrix]
+    list_center = [[0, 0], [4, 0], [8, 0], [12, 0], [12, 4], [8, 4], [4, 4], [0, 4]]
+    list_label = [0, 1, 2, 3, 4, 5, 6, 7]
+    list_matrix = [basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_matrix, basic_matrix]
 
     # list_center = [[0, 0], [4, 0], [4, 4], [0, 4]]
     # list_label = [0, 1, 2, 3]
     # list_matrix = [y_matrix, basic_matrix, basic_matrix, y_matrix]
 
-    number_sample = 50
+    number_sample = 10
     normalize_flag = True
     # toy_data, toy_label = tools.artificial_data(number_sample, list_center, list_label, list_matrix, normalize_flag)
     toy_data, toy_label = tools.up_sample(toy_data, toy_label)
     toy_train_list, toy_test_list = tools.cross_validation(toy_data, toy_label, 4)
+    # toy_train_list = [[toy_data, toy_label]]
+    # toy_test_list = [[toy_data, toy_label]]
 
     # print(toy_data)
     # print(toy_label)
@@ -76,8 +79,8 @@ def test():
     run_aogmlvq = False
 
     # run_gmlvq = True
-    # run_gmlvqol = True
-    run_ogmlvq = True
+    run_gmlvqol = True
+    # run_ogmlvq = True
     # run_aogmlvq = True
 
     run_flag = True
@@ -102,38 +105,38 @@ def test():
                 if run_gmlvq:
                     method = 'gmlvq'
                     gmlvq = GmlvqModel(number_prototype)
-                    gmlvq.fit(train_data, train_label, test_data, test_label)
+                    gmlvq.fit(train_data, train_label)
                     # plot2d(gmlvq, test_data, test_label, figure=1, prototype_count=number_prototype,
                     #        title='gmlvq', no_index=True)
                     ab_accuracy, MAE = gmlvq.score(test_data, test_label)
                     ab_accuracy_sum += ab_accuracy
                     MAE_sum += MAE
-                    print('gmlvq classification accuracy:', ab_accuracy)
-                    print('gmlvq classification MAE:', MAE)
+                    # print('gmlvq classification accuracy:', ab_accuracy)
+                    # print('gmlvq classification MAE:', MAE)
 
                 if run_gmlvqol:
                     method = 'gmlvq_online'
-                    gmlvqol = GmlvqOLModel(number_prototype, kernel_size=1, gtol=0.05, lr_prototype=0.1, lr_omega=0.05,
-                                         final_lr=0.01, batch_flag=False, n_interval=100, max_iter=800)
+                    gmlvqol = GmlvqOLModel(number_prototype, kernel_size=1, gtol=0.02, lr_prototype=0.1, lr_omega=0.05,
+                                         final_lr=0.01, batch_flag=False, n_interval=50, max_iter=2000)
                     gmlvqol, epoch_MZE_MAE_dic, proto_history_list = gmlvqol.fit(train_data, train_label, test_data,
                                                                                test_label, trace_proto=True)
                     # ogmlvq, epoch_MZE_MAE_dic = ogmlvq.fit(train_data, train_label, test_data, test_label, trace_proto=False)
-                    # plot2d(ogmlvq, test_data, test_label, proto_history_list, figure=1, prototype_count=number_prototype, title='p_ogmlvq', no_index=True)
+                    # plot2d(gmlvqol, test_data, test_label, proto_history_list, figure=1, prototype_count=number_prototype, title='online_gmlvq', no_index=True)
                     MZE_MAE_dic_list.append(epoch_MZE_MAE_dic)
 
                 if run_ogmlvq:
                     method = 'ogmlvq'
-                    ogmlvq = OGmlvqModel(number_prototype, kernel_size=1, gtol=0.005, lr_prototype=0.15, lr_omega=0.1,
-                                         final_lr=0.01, batch_flag=False, n_interval=100, max_iter=2000, sigma=0.5, sigma1=1)
+                    ogmlvq = OGmlvqModel(number_prototype, kernel_size=0, gtol=0.04, lr_prototype=0.15, lr_omega=0.1,
+                                         final_lr=0.01, batch_flag=False, n_interval=10, max_iter=2000, sigma=0.5, sigma1=1)
                     ogmlvq, epoch_MZE_MAE_dic, proto_history_list = ogmlvq.fit(train_data, train_label, test_data, test_label, trace_proto=True)
                     # ogmlvq, epoch_MZE_MAE_dic = ogmlvq.fit(train_data, train_label, test_data, test_label, trace_proto=False)
-                    # plot2d(ogmlvq, test_data, test_label, proto_history_list, figure=1, prototype_count=number_prototype, title='p_ogmlvq', no_index=True)
+                    plot2d(ogmlvq, test_data, test_label, proto_history_list, figure=1, prototype_count=number_prototype, title='p_ogmlvq', no_index=True)
                     MZE_MAE_dic_list.append(epoch_MZE_MAE_dic)
 
                 if run_aogmlvq:
                     method = 'aogmlvq'
-                    aogmlvq = AOGmlvqModel(number_prototype, kernel_size=1, gtol=0.05, lr_prototype=0.1, lr_omega=0.05,
-                                           final_lr=0.01, sigma3=1, n_interval=5, max_iter=800, sigma1=0.5, sigma2=0.5)
+                    aogmlvq = AOGmlvqModel(number_prototype, kernel_size=1, gtol=0.05, lr_prototype=0.15, lr_omega=0.01,
+                                           final_lr=0.005, sigma3=1, n_interval=10, max_iter=1450, sigma1=1, sigma2=0.5, cost_trace=True)
                     aogmlvq, epoch_MZE_MAE_dic, proto_history_list = aogmlvq.fit(train_data, train_label, test_data, test_label, trace_proto=True)
                     # plot2d(aogmlvq, test_data, test_label,proto_history_list, figure=1, prototype_count=number_prototype,
                     #        title='a_ogmlvq', no_index=True)
