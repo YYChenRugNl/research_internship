@@ -35,8 +35,8 @@ class CustomTool():
         # print(arr_length)
         attr = my_data[:, 0:arr_length-1]
         labels = my_data[:, arr_length-1:arr_length]
-        # print(attr)
-        # print(labels)
+        print(attr)
+        print(labels)
         return self.normalize_attr(attr), self.relabel_data(labels[:, 0], 10)
 
     def read_from_medical_data(self, datapath):

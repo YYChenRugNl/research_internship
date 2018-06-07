@@ -14,14 +14,14 @@ print(__doc__)
 
 
 def test():
-    datapath = '../benchmark_datasets/Machine-Cpu/machine.data'
-    # datapath = 'C:/Users/Yukki/Desktop/RIntern/data_ordinal.csv'
+    # datapath = '../benchmark_datasets/Machine-Cpu/machine.data'
+    datapath = 'C:/Users/Yukki/Desktop/RIntern/data_ordinal.csv'
 
     tools = CustomTool()
     # toy_data, toy_label = tools.read_from_abalone()
     # toy_data, toy_label = tools.read_from_bank()
-    # toy_data, toy_label = tools.read_from_medical_data(datapath)
-    toy_data, toy_label = tools.read_from_file(datapath)
+    toy_data, toy_label = tools.read_from_medical_data(datapath)
+    # toy_data, toy_label = tools.read_from_file(datapath)
 
     # toy_label[toy_label > 0.666] = 2
     # toy_label[(toy_label > 0.333) & (toy_label <= 0.666)] = 1
@@ -66,7 +66,7 @@ def test():
     normalize_flag = True
     # toy_data, toy_label = tools.artificial_data(number_sample, list_center, list_label, list_matrix, normalize_flag)
     toy_data, toy_label = tools.up_sample(toy_data, toy_label)
-    toy_train_list, toy_test_list = tools.cross_validation(toy_data, toy_label, 4)
+    toy_train_list, toy_test_list = tools.cross_validation(toy_data, toy_label, 2)
     # toy_train_list = [[toy_data, toy_label]]
     # toy_test_list = [[toy_data, toy_label]]
 
@@ -91,7 +91,7 @@ def test():
     if run_flag:
         start = time.time()
         # for number_prototype in [1, 2, 3, 4, 5, 6, 7]:
-        for number_prototype in [3]:
+        for number_prototype in [5]:
             MZE_MAE_dic_list = []
             ab_accuracy_sum = 0
             MAE_sum = 0
@@ -116,7 +116,7 @@ def test():
 
                 if run_gmlvqol:
                     method = 'gmlvq_online'
-                    gmlvqol = GmlvqOLModel(number_prototype, kernel_size=1, gtol=0.02, lr_prototype=0.1, lr_omega=0.05,
+                    gmlvqol = GmlvqOLModel(number_prototype, kernel_size=0, gtol=0.05, lr_prototype=0.1, lr_omega=0.05,
                                          final_lr=0.01, batch_flag=False, n_interval=50, max_iter=2000)
                     gmlvqol, epoch_MZE_MAE_dic, proto_history_list = gmlvqol.fit(train_data, train_label, test_data,
                                                                                test_label, trace_proto=True)
@@ -126,8 +126,8 @@ def test():
 
                 if run_ogmlvq:
                     method = 'ogmlvq'
-                    ogmlvq = OGmlvqModel(number_prototype, kernel_size=0, gtol=0.04, lr_prototype=0.15, lr_omega=0.1,
-                                         final_lr=0.01, batch_flag=False, n_interval=10, max_iter=2000, sigma=0.5, sigma1=1)
+                    ogmlvq = OGmlvqModel(number_prototype, kernel_size=1, gtol=0.04, lr_prototype=0.1, lr_omega=0.05,
+                                         final_lr=0.01, batch_flag=False, n_interval=10, max_iter=2000, sigma=0.3, sigma1=1.5, cost_trace=True)
                     ogmlvq, epoch_MZE_MAE_dic, proto_history_list = ogmlvq.fit(train_data, train_label, test_data, test_label, trace_proto=True)
                     # ogmlvq, epoch_MZE_MAE_dic = ogmlvq.fit(train_data, train_label, test_data, test_label, trace_proto=False)
                     plot2d(ogmlvq, test_data, test_label, proto_history_list, figure=1, prototype_count=number_prototype, title='p_ogmlvq', no_index=True)
@@ -135,8 +135,8 @@ def test():
 
                 if run_aogmlvq:
                     method = 'aogmlvq'
-                    aogmlvq = AOGmlvqModel(number_prototype, kernel_size=1, gtol=0.05, lr_prototype=0.15, lr_omega=0.01,
-                                           final_lr=0.005, sigma3=1, n_interval=10, max_iter=1450, sigma1=1, sigma2=0.5, cost_trace=True)
+                    aogmlvq = AOGmlvqModel(number_prototype, kernel_size=1, gtol=0.05, lr_prototype=0.1, lr_omega=0.08,
+                                           final_lr=0.01, sigma3=1, n_interval=10, max_iter=1450, sigma1=1, sigma2=0.5, cost_trace=True)
                     aogmlvq, epoch_MZE_MAE_dic, proto_history_list = aogmlvq.fit(train_data, train_label, test_data, test_label, trace_proto=True)
                     # plot2d(aogmlvq, test_data, test_label,proto_history_list, figure=1, prototype_count=number_prototype,
                     #        title='a_ogmlvq', no_index=True)

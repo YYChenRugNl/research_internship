@@ -56,10 +56,10 @@ normalize_flag = True
 
 # gtol_list = [0.05, 0.02, 0.01, 0.005]
 # number_prototype_list = [1, 2, 3, 4, 5]
-number_prototype_list = [3]
-kernel_size = [0]
+number_prototype_list = [1, 3, 5]
+kernel_size = [0, 1]
 # sigma1_list = [0.2, 0.5, 1]
-sigma1_list = [1]
+sigma1_list = [0.2]
 sigma2_list = [0.2, 0.5, 1]
 # sigma3_list = [0.2, 0.5, 1]
 
@@ -72,10 +72,11 @@ lr_prototype_list = [0.05, 0.1, 0.15]
 lr_omega_list = [0.025, 0.05, 0.1]
 final_lr_list = [0.005, 0.01, 0.02]
 iteration_list = [200, 1000, 1500]
-lr_prototype_list = [0.2]
-lr_omega_list = [0.1]
-final_lr_list = [0.001]
-iteration_list = [250, 400, 600]
+# lr_prototype_list = [0.2]
+
+# lr_omega_list = [0.1]
+# final_lr_list = [0.001]
+# iteration_list = [250, 400, 600]
 
 
 # a version

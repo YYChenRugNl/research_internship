@@ -119,38 +119,49 @@ class OGmlvqModel(GlvqModel):
 
     def find_prototype(self, data_point, label, k_size):
         list_dist = _squared_euclidean(data_point.dot(self.omega_.T), self.w_.dot(self.omega_.T)).flatten()
-        # list_dist = np.sqrt(list_square_dist)
-        # np.around(list_dist, decimals=5)
 
         class_list = self.class_list_dict[label]
         prototype_list = self.prototype_list_dict[label]
 
-        D = list_dist[np.invert(prototype_list)].mean()
-        # print(class_list)
+        # D = list_dist[np.invert(prototype_list)].mean()
+        D = np.median(list_dist[np.invert(prototype_list)]) * 2
 
         # collection set of closest prototype from each correct class
         # collection set of closest prototype from each wrong class
         cls_ind = 0
         W_plus = []
         W_minus = []
-        max_error_cls = 0
+        # find correct prototypes
         for correct_cls in class_list:
-            ind0 = cls_ind * self.prototypes_per_class
-            ind1 = ind0 + self.prototypes_per_class
-            trg_class_dis = list_dist[ind0:ind1]
-            argmin_idx = np.argmin(trg_class_dis, axis=0)
-            min_val = trg_class_dis[argmin_idx]
-            min_idx = argmin_idx + ind0
-
             if correct_cls:
+                ind0 = cls_ind * self.prototypes_per_class
+                ind1 = ind0 + self.prototypes_per_class
+                trg_class_dis = list_dist[ind0:ind1]
+                argmin_idx = np.argmin(trg_class_dis, axis=0)
+                min_val = trg_class_dis[argmin_idx]
+                min_idx = argmin_idx + ind0
                 W_plus.append([min_idx, min_val])
-            elif min_val <= D:
-                W_minus.append([min_idx, min_val])
-                if abs(cls_ind - label) > max_error_cls:
-                    max_error_cls = abs(cls_ind - label)
             cls_ind += 1
+        # find all incorrect prototypes within D
+        for idx in range(len(prototype_list)):
+            correct_proto = prototype_list[idx]
+            if not correct_proto and list_dist[idx] < D:
+                W_minus.append([idx, list_dist[idx]])
 
-        return W_plus, W_minus, max_error_cls, D
+        number_pair = min(len(W_plus), len(W_minus))
+        W_plus.sort(key=lambda x: x[1], reverse=False)
+        W_minus.sort(key=lambda x: x[1], reverse=False)
+        selected_w_plus = W_plus[0:number_pair]
+        selected_w_minus = W_minus[0:number_pair]
+
+        max_error_cls = 0
+        for incorrect_proto in W_minus:
+            temp_cls = incorrect_proto[0]//self.prototypes_per_class
+            if abs(temp_cls-label) > max_error_cls:
+                max_error_cls = abs(temp_cls-label)
+        # max_error_cls = self.max_error_cls_dict[label]
+
+        return selected_w_plus, selected_w_minus, max_error_cls, D
 
     # update prototype a and b, and omega
     def update_prot_and_omega(self, w_plus, w_minus, label, max_error_cls, datapoint, lr_pt, lr_om, D):
@@ -318,6 +329,7 @@ class OGmlvqModel(GlvqModel):
 
         self.class_list_dict = {}
         self.prototype_list_dict = {}
+        self.max_error_cls_dict = {}
 
         for key in self.ranking_list:
             correct_cls_min = key - self.kernel_size
@@ -343,10 +355,13 @@ class OGmlvqModel(GlvqModel):
             prototype_list[proto_correct_list] = True
             self.prototype_list_dict[key] = prototype_list
 
+            wrong_ranking = self.ranking_list[np.invert(class_list)]
+            self.max_error_cls_dict[key] = max(wrong_ranking.max() - key, key - wrong_ranking.min())
+
         # start the algorithm
         epoch_index = 0
         max_epoch = self.max_iter
-        cost_list = np.zeros([max_epoch, 1])
+        cost_list = []
         lr_pt = self.lr_prototype
         lr_om = self.lr_omega
         epoch_MZE_MAE_dic = {}
@@ -384,21 +399,21 @@ class OGmlvqModel(GlvqModel):
                 if trace_proto:
                     proto_history_list.append(self.w_.copy())
 
-            # calculate and print costs of all epochs
-            if self.cost_trace:
-                sum_cost = 0
-                cost_count = 0
-                for index in range(len(x)):
-                    datapoint = np.array([x[index]])
-                    label = y[index]
-                    cost, count = self._costfunc(datapoint, label, self.kernel_size)
-                    sum_cost += cost
-                    cost_count += count
+                # calculate and print costs of all epochs
+                if self.cost_trace:
+                    epoch_index = i
+                    sum_cost = 0
+                    cost_count = 0
+                    for index in range(len(x)):
+                        datapoint = np.array([x[index]])
+                        label = y[index]
+                        cost, count = self._costfunc(datapoint, label, self.kernel_size)
+                        sum_cost += cost
+                        cost_count += count
 
-                cost_list[epoch_index] = sum_cost/cost_count
-                epoch_index += 1
-                if epoch_index >= max_epoch:
-                    print(cost_list)
+                    cost_list.append(sum_cost / cost_count)
+                    if epoch_index >= max_epoch - 1:
+                        print(cost_list)
 
             lr_pt = self.lr_prototype / (1 + self.gtol * (epoch_index - 1))
             lr_om = self.lr_omega / (1 + self.gtol * (epoch_index - 1))

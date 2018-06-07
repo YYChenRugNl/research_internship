@@ -35,10 +35,11 @@ cross_validation = 10
 train_list, test_list = tools.cross_validation(real_data, real_label, cross_validation)
 
 # gtol_list = [0.05, 0.02, 0.01, 0.005]
-number_prototype_list = [1, 2]
-kernel_size = [1]
+number_prototype_list = [5]
+kernel_size = [0, 1]
 # sigma1_list = [0.2, 0.5, 1]
 sigma1_list = [0.2, 0.5]
+sigma2_list = [0.2, 0.5]
 
 lr_prototype = 0.1
 lr_omega = 0.05

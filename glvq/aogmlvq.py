@@ -125,7 +125,7 @@ class AOGmlvqModel(GlvqModel):
         prototype_list = self.prototype_list_dict[label]
 
         # D = list_dist[np.invert(prototype_list)].mean()
-        D = np.median(list_dist[np.invert(prototype_list)])
+        D = np.median(list_dist[np.invert(prototype_list)]) * 2
 
         # collection set of closest prototype from each correct class
         # collection set of closest prototype from each wrong class
@@ -155,11 +155,12 @@ class AOGmlvqModel(GlvqModel):
         selected_w_plus = W_plus[0:number_pair]
         selected_w_minus = W_minus[0:number_pair]
 
-        max_error_cls = 0
-        for incorrect_proto in W_minus:
-            temp_cls = incorrect_proto[0]//self.prototypes_per_class
-            if abs(temp_cls-label) > max_error_cls:
-                max_error_cls = abs(temp_cls-label)
+        # max_error_cls = 0
+        # for incorrect_proto in W_minus:
+        #     temp_cls = incorrect_proto[0]//self.prototypes_per_class
+        #     if abs(temp_cls-label) > max_error_cls:
+        #         max_error_cls = abs(temp_cls-label)
+        max_error_cls = self.max_error_cls_dict[label]
 
         return selected_w_plus, selected_w_minus, max_error_cls, D
 
@@ -265,9 +266,9 @@ class AOGmlvqModel(GlvqModel):
         delta_sigma2 = lr_pt * gamma_minus/(2*self.sigma2*self.sigma2*self.sigma2) * sum_alpha_distance_minus_ranking
         delta_sigma3 = lr_pt * gamma_minus/(2*self.sigma3*self.sigma3*self.sigma3) * sum_alpha_distance_square
 
-        self.sigma1 += delta_sigma1
-        self.sigma2 += delta_sigma2
-        self.sigma3 += delta_sigma3
+        self.sigma1 += delta_sigma1*10
+        self.sigma2 += delta_sigma2*10
+        self.sigma3 += delta_sigma3*10
         # print("sigmas:")
         # print(self.sigma1, self.sigma2, self.sigma3)
 
@@ -369,6 +370,7 @@ class AOGmlvqModel(GlvqModel):
 
         self.class_list_dict = {}
         self.prototype_list_dict = {}
+        self.max_error_cls_dict = {}
 
         for key in self.ranking_list:
             correct_cls_min = key - self.kernel_size
@@ -393,6 +395,9 @@ class AOGmlvqModel(GlvqModel):
             prototype_list = np.zeros((len(self.c_w_)), dtype=bool)
             prototype_list[proto_correct_list] = True
             self.prototype_list_dict[key] = prototype_list
+
+            wrong_ranking = self.ranking_list[np.invert(class_list)]
+            self.max_error_cls_dict[key] = max(wrong_ranking.max() - key, key - wrong_ranking.min())
 
         # start the algorithm
         # stop_flag = False
@@ -424,6 +429,7 @@ class AOGmlvqModel(GlvqModel):
             if (i+1) % self.n_interval == 0 or (i+1) == max_epoch:
                 score, ab_score, MAE = self.score(test_x, test_y)
                 epoch_MZE_MAE_dic[i+1] = [1-ab_score, MAE]
+                print(self.sigma1, self.sigma2, self.sigma3)
                 if trace_proto:
                     proto_history_list.append(self.w_.copy())
 
