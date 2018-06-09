@@ -22,11 +22,11 @@ df = pd.DataFrame(raw_data, columns=['iterations', 'nb_prototypes', 'k_size', 's
 save_path = '../a_results/a_results_' + str(int(time.time())) + '.csv'
 tools = CustomTool()
 
-# # datapath = 'C:/Users/Yukki/Desktop/RIntern/data_ordinal.csv'
-datapath = '../benchmark_datasets/Machine-Cpu/machine.data'
+datapath = 'C:/Users/Yukki/Desktop/RIntern/data_ordinal.csv'
+# datapath = '../benchmark_datasets/Machine-Cpu/machine.data'
 #
-# # real_data, real_label = tools.read_from_medical_data(datapath)
-real_data, real_label = tools.read_from_file(datapath)
+real_data, real_label = tools.read_from_medical_data(datapath)
+# real_data, real_label = tools.read_from_file(datapath)
 #
 cross_validation = 10
 real_data, real_label = tools.up_sample(real_data, real_label)
@@ -56,11 +56,11 @@ normalize_flag = True
 
 # gtol_list = [0.05, 0.02, 0.01, 0.005]
 # number_prototype_list = [1, 2, 3, 4, 5]
-number_prototype_list = [1, 3, 5]
-kernel_size = [0, 1]
+number_prototype_list = [5]
+kernel_size = [0]
 # sigma1_list = [0.2, 0.5, 1]
 sigma1_list = [0.2]
-sigma2_list = [0.2, 0.5, 1]
+sigma2_list = [0.3]
 # sigma3_list = [0.2, 0.5, 1]
 
 lr_prototype = 0.1
@@ -68,15 +68,14 @@ lr_omega = 0.05
 final_lr = 0.01
 iteration = 1800
 
-lr_prototype_list = [0.05, 0.1, 0.15]
-lr_omega_list = [0.025, 0.05, 0.1]
-final_lr_list = [0.005, 0.01, 0.02]
-iteration_list = [200, 1000, 1500]
-# lr_prototype_list = [0.2]
-
-# lr_omega_list = [0.1]
-# final_lr_list = [0.001]
-# iteration_list = [250, 400, 600]
+# lr_prototype_list = [0.05, 0.1, 0.15]
+# lr_omega_list = [0.025, 0.05, 0.1]
+# final_lr_list = [0.005, 0.01, 0.02]
+# iteration_list = [200, 1000, 1500]
+lr_prototype_list = [0.1]
+lr_omega_list = [0.08]
+final_lr_list = [0.01]
+iteration_list = [500]
 
 
 # a version
@@ -105,7 +104,7 @@ for number_prototype in number_prototype_list:
                         # accuracy += gmlvq.score(test_data, test_label)
 
                         aogmlvq = AOGmlvqModel(number_prototype, kernel_size=k, gtol=gtol, lr_prototype=lr_prototype, lr_omega=lr_omega, final_lr=final_lr,
-                                               sigma1=s1, sigma2=s1, sigma3=1, n_interval=10)
+                                               sigma1=1, sigma2=s1, sigma3=1, n_interval=10)
                         aogmlvq, epoch_MZE_MAE_dic = aogmlvq.fit(train_data, train_label, test_data, test_label)
                         MZE_MAE_dic_list.append(epoch_MZE_MAE_dic)
 

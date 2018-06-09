@@ -14,14 +14,14 @@ print(__doc__)
 
 
 def test():
-    # datapath = '../benchmark_datasets/Machine-Cpu/machine.data'
-    datapath = 'C:/Users/Yukki/Desktop/RIntern/data_ordinal.csv'
+    datapath = '../benchmark_datasets/Machine-Cpu/machine.data'
+    # datapath = 'C:/Users/Yukki/Desktop/RIntern/data_ordinal.csv'
 
     tools = CustomTool()
     # toy_data, toy_label = tools.read_from_abalone()
     # toy_data, toy_label = tools.read_from_bank()
-    toy_data, toy_label = tools.read_from_medical_data(datapath)
-    # toy_data, toy_label = tools.read_from_file(datapath)
+    # toy_data, toy_label = tools.read_from_medical_data(datapath)
+    toy_data, toy_label = tools.read_from_file(datapath)
 
     # toy_label[toy_label > 0.666] = 2
     # toy_label[(toy_label > 0.333) & (toy_label <= 0.666)] = 1
@@ -66,7 +66,7 @@ def test():
     normalize_flag = True
     # toy_data, toy_label = tools.artificial_data(number_sample, list_center, list_label, list_matrix, normalize_flag)
     toy_data, toy_label = tools.up_sample(toy_data, toy_label)
-    toy_train_list, toy_test_list = tools.cross_validation(toy_data, toy_label, 2)
+    toy_train_list, toy_test_list = tools.cross_validation(toy_data, toy_label, 5)
     # toy_train_list = [[toy_data, toy_label]]
     # toy_test_list = [[toy_data, toy_label]]
 
@@ -79,9 +79,9 @@ def test():
     run_aogmlvq = False
 
     # run_gmlvq = True
-    run_gmlvqol = True
+    # run_gmlvqol = True
     # run_ogmlvq = True
-    # run_aogmlvq = True
+    run_aogmlvq = True
 
     run_flag = True
     # run_flag = False
@@ -135,12 +135,17 @@ def test():
 
                 if run_aogmlvq:
                     method = 'aogmlvq'
-                    aogmlvq = AOGmlvqModel(number_prototype, kernel_size=1, gtol=0.05, lr_prototype=0.1, lr_omega=0.08,
-                                           final_lr=0.01, sigma3=1, n_interval=10, max_iter=1450, sigma1=1, sigma2=0.5, cost_trace=True)
+                    aogmlvq = AOGmlvqModel(number_prototype, kernel_size=0, gtol=0.03, lr_prototype=0.07, lr_omega=0.05,
+                                           final_lr=0.005, sigma3=1, n_interval=10, max_iter=2500, sigma1=1, sigma2=0.5, cost_trace=True)
                     aogmlvq, epoch_MZE_MAE_dic, proto_history_list = aogmlvq.fit(train_data, train_label, test_data, test_label, trace_proto=True)
                     # plot2d(aogmlvq, test_data, test_label,proto_history_list, figure=1, prototype_count=number_prototype,
                     #        title='a_ogmlvq', no_index=True)
                     MZE_MAE_dic_list.append(epoch_MZE_MAE_dic)
+                    key_list = MZE_MAE_dic_list[0].keys()
+                    for key in key_list:
+                        print(method, 'classification Epoch:', key)
+                        # print(method, 'classification MZE:', epoch_MZE_MAE_dic[key][0])
+                        print(method, 'classification MAE:', epoch_MZE_MAE_dic[key][1])
 
             if run_gmlvq:
                 print('gmlvq classification average MZE:', 1 - ab_accuracy_sum/len(toy_train_list))
