@@ -266,9 +266,9 @@ class AOGmlvqModel(GlvqModel):
         delta_sigma2 = lr_pt * gamma_minus/(2*self.sigma2*self.sigma2*self.sigma2) * sum_alpha_distance_minus_ranking
         delta_sigma3 = lr_pt * gamma_minus/(2*self.sigma3*self.sigma3*self.sigma3) * sum_alpha_distance_square
 
-        self.sigma1 += delta_sigma1*10
-        self.sigma2 += delta_sigma2*10
-        self.sigma3 += delta_sigma3*10
+        self.sigma1 += delta_sigma1
+        self.sigma2 += delta_sigma2
+        self.sigma3 += delta_sigma3
         # print("sigmas:")
         # print(self.sigma1, self.sigma2, self.sigma3)
 
@@ -429,7 +429,7 @@ class AOGmlvqModel(GlvqModel):
             if (i+1) % self.n_interval == 0 or (i+1) == max_epoch:
                 score, ab_score, MAE = self.score(test_x, test_y)
                 epoch_MZE_MAE_dic[i+1] = [1-ab_score, MAE]
-                print(self.sigma1, self.sigma2, self.sigma3)
+                # print(self.sigma1, self.sigma2, self.sigma3)
                 if trace_proto:
                     proto_history_list.append(self.w_.copy())
 
@@ -447,13 +447,25 @@ class AOGmlvqModel(GlvqModel):
                     if epoch_index >= max_epoch - 1:
                         print(np.array(cost_list))
 
-            lr_pt = self.lr_prototype / (1 + self.gtol * (i - 1))
-            lr_om = self.lr_omega / (1 + self.gtol * (i - 1))
+            lr_pt, lr_om = self.learning_rate(i, 0.90)
 
         if trace_proto:
             return epoch_MZE_MAE_dic, proto_history_list
         else:
             return epoch_MZE_MAE_dic
+
+    def learning_rate(self, epoch, zeropoint):
+        x = -(epoch - zeropoint * self.max_iter)
+        if x > 100:
+            sigmoid = 1
+        else:
+            sigmoid = math.exp(x) / (1 + math.exp(x))
+        lr_pt = self.lr_prototype / (1 + self.gtol * (epoch - 1))
+        lr_om = self.lr_omega / (1 + self.gtol * (epoch - 1))
+        lr_pt = sigmoid * lr_pt
+        lr_om = sigmoid * lr_om
+
+        return lr_pt, lr_om
 
     def _compute_distance(self, x, w=None, omega=None):
         if w is None:
