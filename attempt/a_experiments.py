@@ -77,8 +77,7 @@ iteration_list = [200, 1000, 1500]
 
 
 final_run = True
-times = 2
-
+times = 50
 
 if final_run:
     # parameters
@@ -90,8 +89,8 @@ if final_run:
     lr_prototype = 0.1
     lr_omega = 0.08
     final_lr = 0.001
-    final_lr = 0.08
-    max_iteration = 20
+    # final_lr = 0.08
+    max_iteration = 1000
 
     MZE_final_sum = 0
     MAE_final_sum = 0
@@ -149,7 +148,7 @@ if final_run:
     final_MZE = MZE_final_sum / times
     final_MAE = MAE_final_sum / times
     df.loc[df.shape[0]] = np.array([00,
-        number_prototype, k, sigma1, sigma2, sigma3, average_MZE, average_MAE,
+        number_prototype, k, sigma1, sigma2, sigma3, final_MZE, final_MAE,
         lr_prototype, lr_omega, final_lr, max_iteration])
     df.to_csv(save_path)
     print("final MAE:", final_MAE)
