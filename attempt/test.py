@@ -20,8 +20,8 @@ def test():
     tools = CustomTool()
     # toy_data, toy_label = tools.read_from_abalone()
     # toy_data, toy_label = tools.read_from_bank()
-    # toy_data, toy_label = tools.read_from_medical_data(datapath)
-    toy_data, toy_label = tools.read_from_file(datapath)
+    toy_data, toy_label = tools.read_from_medical_data(datapath)
+    # toy_data, toy_label = tools.read_from_file(datapath)
 
     # toy_label[toy_label > 0.666] = 2
     # toy_label[(toy_label > 0.333) & (toy_label <= 0.666)] = 1
