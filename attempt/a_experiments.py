@@ -120,8 +120,10 @@ if final_run:
             aogmlvq, epoch_MZE_MAE_dic = aogmlvq.fit(train_data, train_label, test_data, test_label)
             MZE_MAE_dic_list.append(epoch_MZE_MAE_dic)
 
-        key_list = MZE_MAE_dic_list[0].keys()
-        for key in key_list:
+        key_list = list(MZE_MAE_dic_list[0].keys())
+        key_length = len(key_list)
+        for key_index in range(key_length):
+            key = key_list[key_index]
             average_MZE_MAE = sum(np.array(dic[key]) for dic in MZE_MAE_dic_list) / len(MZE_MAE_dic_list)
             average_MZE = average_MZE_MAE[0]
             average_MAE = average_MZE_MAE[1]
@@ -134,8 +136,23 @@ if final_run:
             print('aogmlvq classification average MAE:', average_MAE)
             print('number of prototypes:', number_prototype)
             print('tolerance:', k)
+            if key_index == key_length - 1:
+                MZE_final_sum += average_MZE
+                MAE_final_sum += average_MAE
 
         df.to_csv(save_path)
+
+        end = time.time()
+        print(end - start, "s")
+        plt.show()
+
+    final_MZE = MZE_final_sum / times
+    final_MAE = MAE_final_sum / times
+    df.loc[df.shape[0]] = np.array([00,
+        number_prototype, k, sigma1, sigma2, sigma3, average_MZE, average_MAE,
+        lr_prototype, lr_omega, final_lr, max_iteration])
+    df.to_csv(save_path)
+    print("final MAE:", final_MAE)
 
 else:
     # a version
