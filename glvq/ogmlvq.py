@@ -98,7 +98,7 @@ class OGmlvqModel(GlvqModel):
                  initial_matrix=None, regularization=0.0,
                  dim=None, max_iter=2500, gtol=1e-4, display=False,
                  random_state=None, lr_prototype=0.1, lr_omega=0.05, final_lr=0.001, batch_flag=True,
-                 sigma=0.5, sigma1=1, cost_trace=False, n_interval=50):
+                 sigma=0.5, sigma1=1, cost_trace=False, n_interval=50, zeropoint=0.95):
         super(OGmlvqModel, self).__init__(prototypes_per_class,
                                          initial_prototypes, max_iter, gtol,
                                          display, random_state)
@@ -116,6 +116,7 @@ class OGmlvqModel(GlvqModel):
         self.gaussian_sd_wrong = sigma1
         self.cost_trace = cost_trace
         self.n_interval = n_interval
+        self.zeropoint = zeropoint
 
     def find_prototype(self, data_point, label, k_size):
         list_dist = _squared_euclidean(data_point.dot(self.omega_.T), self.w_.dot(self.omega_.T)).flatten()
@@ -414,9 +415,9 @@ class OGmlvqModel(GlvqModel):
 
                     cost_list.append(sum_cost / cost_count)
                     if epoch_index >= max_epoch - 1:
-                        print(cost_list)
+                        print(np.array(cost_list))
 
-            lr_pt, lr_om = self.learning_rate(i, 0.95)
+            lr_pt, lr_om = self.learning_rate(i, self.zeropoint)
             # print("lr_pt, lr_om", lr_pt, lr_om)
             # lr_pt = lr_pt / (1 + self.gtol * (epoch_index - 1))
             # lr_om = lr_om / (1 + self.gtol * (epoch_index - 1))

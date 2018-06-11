@@ -109,8 +109,10 @@ class CustomTool():
 
     # 5-fold cross validation in default
     def cross_validation(self, data, labels, fold=5):
+        unique, counts = np.unique(labels, return_counts=True)
+        min_count = int(counts.min())
         length = len(data)
-        if length < fold:
+        if min_count < fold:
             raise ValueError(
                 " fold number {} is larger than data length {}".format(fold, length))
         kf = KFold(n_splits=fold, random_state=None, shuffle=True)
@@ -122,6 +124,61 @@ class CustomTool():
             Y_train, Y_test = labels[train_index], labels[test_index]
             train_list.append([X_train, Y_train])
             test_list.append([X_test, Y_test])
+
+        return train_list, test_list
+
+    # 5-fold cross validation in default
+    def cross_validation_by_class(self, data, labels, fold=5, upsample=True):
+        unique, counts = np.unique(labels, return_counts=True)
+        min_count = int(counts.min())
+        # length = len(data)
+        if min_count < fold:
+            raise ValueError(
+                " fold number {} is larger than smallest number of class {}".format(fold, min_count))
+        kf = KFold(n_splits=fold, random_state=None, shuffle=True)
+
+        temp_train_list = []
+        temp_test_list = []
+        # split each class
+        for idx in range(len(unique)):
+            cls = unique[idx]
+            cls_data = data[labels == cls]
+            splited_index = kf.split(cls_data)
+            cls_train_list = []
+            cls_test_list = []
+            for train_index, test_index in splited_index:
+                X_train, X_test = cls_data[train_index], cls_data[test_index]
+                Y_train, Y_test = np.ones(X_train.shape[0]) * cls, np.ones(X_test.shape[0]) * cls
+                cls_train_list.append([X_train, Y_train])
+                cls_test_list.append([X_test, Y_test])
+            temp_train_list.append(cls_train_list)
+            temp_test_list.append(cls_test_list)
+
+        train_list = []
+        test_list = []
+        for f in range(fold):
+            # fold_train_data = np.array([])
+            # fold_train_label= np.array([])
+            # fold_test_data = np.array([])
+            # fold_test_label = np.array([])
+            for idx in range(len(unique)):
+                cls = int(unique[idx])
+                if idx == 0:
+                    fold_train_data = temp_train_list[cls][f][0]
+                    fold_train_label = temp_train_list[cls][f][1]
+                    fold_test_data = temp_test_list[cls][f][0]
+                    fold_test_label = temp_test_list[cls][f][1]
+                else:
+                    fold_train_data = np.concatenate((fold_train_data, temp_train_list[cls][f][0]))
+                    fold_train_label = np.concatenate((fold_train_label, temp_train_list[cls][f][1]))
+                    fold_test_data = np.concatenate((fold_test_data, temp_test_list[cls][f][0]))
+                    fold_test_label = np.concatenate((fold_test_label, temp_test_list[cls][f][1]))
+
+            if upsample:
+                fold_train_data, fold_train_label = self.up_sample(fold_train_data, fold_train_label)
+                fold_test_data, fold_test_label = self.up_sample(fold_test_data, fold_test_label)
+            train_list.append([fold_train_data, fold_train_label])
+            test_list.append([fold_test_data, fold_test_label])
 
         return train_list, test_list
 
