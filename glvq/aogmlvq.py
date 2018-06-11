@@ -99,7 +99,7 @@ class AOGmlvqModel(GlvqModel):
                  initial_matrix=None, regularization=0.0,
                  dim=None, max_iter=2500, gtol=1e-4, display=False,
                  random_state=None, lr_prototype=0.1, lr_omega=0.05, final_lr=0.001, sigma1=0.5, sigma2=0.5, sigma3=1,
-                 cost_trace=False, n_interval=50):
+                 cost_trace=False, n_interval=50, zeropoint=0.95):
         super(AOGmlvqModel, self).__init__(prototypes_per_class,
                                          initial_prototypes, max_iter, gtol,
                                          display, random_state)
@@ -117,6 +117,7 @@ class AOGmlvqModel(GlvqModel):
         self.sigma3 = sigma3
         self.cost_trace = cost_trace
         self.n_interval = n_interval
+        self.zeropoint = zeropoint
 
     def find_prototype(self, data_point, label, k_size):
         list_dist = _squared_euclidean(data_point.dot(self.omega_.T), self.w_.dot(self.omega_.T)).flatten()
@@ -447,7 +448,7 @@ class AOGmlvqModel(GlvqModel):
                     if epoch_index >= max_epoch - 1:
                         print(np.array(cost_list))
 
-            lr_pt, lr_om = self.learning_rate(i, 0.90)
+            lr_pt, lr_om = self.learning_rate(i, self.zeropoint)
 
         if trace_proto:
             return epoch_MZE_MAE_dic, proto_history_list
