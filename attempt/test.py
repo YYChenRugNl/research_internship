@@ -14,14 +14,14 @@ print(__doc__)
 
 
 def test():
-    datapath = '../benchmark_datasets/Machine-Cpu/machine.data'
-    # datapath = 'C:/Users/Yukki/Desktop/RIntern/data_ordinal.csv'
+    # datapath = '../benchmark_datasets/Machine-Cpu/machine.data'
+    datapath = 'C:/Users/Yukki/Desktop/RIntern/data_ordinal.csv'
 
     tools = CustomTool()
     # toy_data, toy_label = tools.read_from_abalone()
     # toy_data, toy_label = tools.read_from_bank()
-    # toy_data, toy_label = tools.read_from_medical_data(datapath)
-    toy_data, toy_label = tools.read_from_file(datapath)
+    toy_data, toy_label = tools.read_from_medical_data(datapath)
+    # toy_data, toy_label = tools.read_from_file(datapath)
 
     # toy_label[toy_label > 0.666] = 2
     # toy_label[(toy_label > 0.333) & (toy_label <= 0.666)] = 1
@@ -65,8 +65,9 @@ def test():
     number_sample = 10
     normalize_flag = True
     # toy_data, toy_label = tools.artificial_data(number_sample, list_center, list_label, list_matrix, normalize_flag)
-    toy_data, toy_label = tools.up_sample(toy_data, toy_label)
-    toy_train_list, toy_test_list = tools.cross_validation(toy_data, toy_label, 4)
+    # toy_data, toy_label = tools.up_sample(toy_data, toy_label)
+    # toy_train_list, toy_test_list = tools.cross_validation(toy_data, toy_label, 8)
+    toy_train_list, toy_test_list = tools.cross_validation_by_class(toy_data, toy_label, 8)
     # toy_train_list = [[toy_data, toy_label]]
     # toy_test_list = [[toy_data, toy_label]]
 
@@ -79,8 +80,8 @@ def test():
     run_aogmlvq = False
 
     # run_gmlvq = True
-    run_gmlvqol = True
-    # run_ogmlvq = True
+    # run_gmlvqol = True
+    run_ogmlvq = True
     # run_aogmlvq = True
 
     run_flag = True
@@ -91,7 +92,7 @@ def test():
     if run_flag:
         start = time.time()
         # for number_prototype in [1, 2, 3, 4, 5, 6, 7]:
-        for number_prototype in [3]:
+        for number_prototype in [5]:
             MZE_MAE_dic_list = []
             ab_accuracy_sum = 0
             MAE_sum = 0
@@ -101,7 +102,7 @@ def test():
                 train_label = toy_train_list[idx][1]
                 test_data = toy_test_list[idx][0]
                 test_label = toy_test_list[idx][1]
-
+                gtol = tools.set_iteration(iter=350, initial_lr=0.07, final_lr=0.001)
                 if run_gmlvq:
                     method = 'gmlvq'
                     gmlvq = GmlvqModel(number_prototype)
@@ -116,7 +117,7 @@ def test():
 
                 if run_gmlvqol:
                     method = 'gmlvq_online'
-                    gmlvqol = GmlvqOLModel(number_prototype, kernel_size=1, gtol=0.02, lr_prototype=0.1, lr_omega=0.05,
+                    gmlvqol = GmlvqOLModel(number_prototype, kernel_size=0, gtol=0.05, lr_prototype=0.1, lr_omega=0.05,
                                          final_lr=0.01, batch_flag=False, n_interval=50, max_iter=2000)
                     gmlvqol, epoch_MZE_MAE_dic, proto_history_list = gmlvqol.fit(train_data, train_label, test_data,
                                                                                test_label, trace_proto=True)
@@ -126,21 +127,32 @@ def test():
 
                 if run_ogmlvq:
                     method = 'ogmlvq'
-                    ogmlvq = OGmlvqModel(number_prototype, kernel_size=0, gtol=0.04, lr_prototype=0.15, lr_omega=0.1,
-                                         final_lr=0.01, batch_flag=False, n_interval=10, max_iter=2000, sigma=0.5, sigma1=1)
+                    ogmlvq = OGmlvqModel(number_prototype, kernel_size=0, gtol=gtol, lr_prototype=0.1, lr_omega=0.08,
+                                         final_lr=0.001, batch_flag=False, n_interval=10, max_iter=500, sigma=0.5, sigma1=1.5, cost_trace=True)
                     ogmlvq, epoch_MZE_MAE_dic, proto_history_list = ogmlvq.fit(train_data, train_label, test_data, test_label, trace_proto=True)
                     # ogmlvq, epoch_MZE_MAE_dic = ogmlvq.fit(train_data, train_label, test_data, test_label, trace_proto=False)
-                    plot2d(ogmlvq, test_data, test_label, proto_history_list, figure=1, prototype_count=number_prototype, title='p_ogmlvq', no_index=True)
+                    # plot2d(ogmlvq, test_data, test_label, proto_history_list, figure=1, prototype_count=number_prototype, title='p_ogmlvq', no_index=True)
                     MZE_MAE_dic_list.append(epoch_MZE_MAE_dic)
+                    key_list = MZE_MAE_dic_list[0].keys()
+                    for key in key_list:
+                        print(method, 'classification Epoch:', key)
+                        # print(method, 'classification MZE:', epoch_MZE_MAE_dic[key][0])
+                        print(method, 'classification MAE:', epoch_MZE_MAE_dic[key][1])
 
                 if run_aogmlvq:
                     method = 'aogmlvq'
-                    aogmlvq = AOGmlvqModel(number_prototype, kernel_size=1, gtol=0.05, lr_prototype=0.15, lr_omega=0.01,
-                                           final_lr=0.005, sigma3=1, n_interval=10, max_iter=1450, sigma1=1, sigma2=0.5, cost_trace=True)
+                    aogmlvq = AOGmlvqModel(number_prototype, kernel_size=0, gtol=gtol, lr_prototype=0.07, lr_omega=0.05,
+                                           final_lr=0.001, sigma3=1, n_interval=10, max_iter=1000, sigma1=1, sigma2=0.2, cost_trace=True
+                                           , zeropoint=0.95)
                     aogmlvq, epoch_MZE_MAE_dic, proto_history_list = aogmlvq.fit(train_data, train_label, test_data, test_label, trace_proto=True)
                     # plot2d(aogmlvq, test_data, test_label,proto_history_list, figure=1, prototype_count=number_prototype,
                     #        title='a_ogmlvq', no_index=True)
                     MZE_MAE_dic_list.append(epoch_MZE_MAE_dic)
+                    key_list = MZE_MAE_dic_list[0].keys()
+                    for key in key_list:
+                        print(method, 'classification Epoch:', key)
+                        # print(method, 'classification MZE:', epoch_MZE_MAE_dic[key][0])
+                        print(method, 'classification MAE:', epoch_MZE_MAE_dic[key][1])
 
             if run_gmlvq:
                 print('gmlvq classification average MZE:', 1 - ab_accuracy_sum/len(toy_train_list))

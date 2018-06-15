@@ -99,7 +99,7 @@ class AOGmlvqModel(GlvqModel):
                  initial_matrix=None, regularization=0.0,
                  dim=None, max_iter=2500, gtol=1e-4, display=False,
                  random_state=None, lr_prototype=0.1, lr_omega=0.05, final_lr=0.001, sigma1=0.5, sigma2=0.5, sigma3=1,
-                 cost_trace=False, n_interval=50):
+                 cost_trace=False, n_interval=50, zeropoint=0.95):
         super(AOGmlvqModel, self).__init__(prototypes_per_class,
                                          initial_prototypes, max_iter, gtol,
                                          display, random_state)
@@ -117,6 +117,7 @@ class AOGmlvqModel(GlvqModel):
         self.sigma3 = sigma3
         self.cost_trace = cost_trace
         self.n_interval = n_interval
+        self.zeropoint = zeropoint
 
     def find_prototype(self, data_point, label, k_size):
         list_dist = _squared_euclidean(data_point.dot(self.omega_.T), self.w_.dot(self.omega_.T)).flatten()
@@ -125,7 +126,7 @@ class AOGmlvqModel(GlvqModel):
         prototype_list = self.prototype_list_dict[label]
 
         # D = list_dist[np.invert(prototype_list)].mean()
-        D = np.median(list_dist[np.invert(prototype_list)])
+        D = np.median(list_dist[np.invert(prototype_list)]) * 2
 
         # collection set of closest prototype from each correct class
         # collection set of closest prototype from each wrong class
@@ -155,11 +156,12 @@ class AOGmlvqModel(GlvqModel):
         selected_w_plus = W_plus[0:number_pair]
         selected_w_minus = W_minus[0:number_pair]
 
-        max_error_cls = 0
-        for incorrect_proto in W_minus:
-            temp_cls = incorrect_proto[0]//self.prototypes_per_class
-            if abs(temp_cls-label) > max_error_cls:
-                max_error_cls = abs(temp_cls-label)
+        # max_error_cls = 0
+        # for incorrect_proto in W_minus:
+        #     temp_cls = incorrect_proto[0]//self.prototypes_per_class
+        #     if abs(temp_cls-label) > max_error_cls:
+        #         max_error_cls = abs(temp_cls-label)
+        max_error_cls = self.max_error_cls_dict[label]
 
         return selected_w_plus, selected_w_minus, max_error_cls, D
 
@@ -369,6 +371,7 @@ class AOGmlvqModel(GlvqModel):
 
         self.class_list_dict = {}
         self.prototype_list_dict = {}
+        self.max_error_cls_dict = {}
 
         for key in self.ranking_list:
             correct_cls_min = key - self.kernel_size
@@ -393,6 +396,9 @@ class AOGmlvqModel(GlvqModel):
             prototype_list = np.zeros((len(self.c_w_)), dtype=bool)
             prototype_list[proto_correct_list] = True
             self.prototype_list_dict[key] = prototype_list
+
+            wrong_ranking = self.ranking_list[np.invert(class_list)]
+            self.max_error_cls_dict[key] = max(wrong_ranking.max() - key, key - wrong_ranking.min())
 
         # start the algorithm
         # stop_flag = False
@@ -424,6 +430,7 @@ class AOGmlvqModel(GlvqModel):
             if (i+1) % self.n_interval == 0 or (i+1) == max_epoch:
                 score, ab_score, MAE = self.score(test_x, test_y)
                 epoch_MZE_MAE_dic[i+1] = [1-ab_score, MAE]
+                # print(self.sigma1, self.sigma2, self.sigma3)
                 if trace_proto:
                     proto_history_list.append(self.w_.copy())
 
@@ -441,13 +448,25 @@ class AOGmlvqModel(GlvqModel):
                     if epoch_index >= max_epoch - 1:
                         print(np.array(cost_list))
 
-            lr_pt = self.lr_prototype / (1 + self.gtol * (i - 1))
-            lr_om = self.lr_omega / (1 + self.gtol * (i - 1))
+            lr_pt, lr_om = self.learning_rate(i, self.zeropoint)
 
         if trace_proto:
             return epoch_MZE_MAE_dic, proto_history_list
         else:
             return epoch_MZE_MAE_dic
+
+    def learning_rate(self, epoch, zeropoint):
+        x = -(epoch - zeropoint * self.max_iter)
+        if x > 100:
+            sigmoid = 1
+        else:
+            sigmoid = math.exp(x) / (1 + math.exp(x))
+        lr_pt = self.lr_prototype / (1 + self.gtol * (epoch - 1))
+        lr_om = self.lr_omega / (1 + self.gtol * (epoch - 1))
+        lr_pt = sigmoid * lr_pt
+        lr_om = sigmoid * lr_om
+
+        return lr_pt, lr_om
 
     def _compute_distance(self, x, w=None, omega=None):
         if w is None:
