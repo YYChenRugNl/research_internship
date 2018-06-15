@@ -75,24 +75,25 @@ zeropoint_list = [0.9, 0.95]
 # lr_prototype_list = [0.1]
 # lr_omega_list = [0.08]
 # final_lr_list = [0.01]
-# iteration_list = [500]
+iteration_list = [200]
 
 
-final_run = False
-times = 50
+final_run = True
+times = 100
 
 if final_run:
     # parameters
     number_prototype = 5
-    k = 0
+    k = 1
     sigma1 = 1
     sigma2 = 0.2
     sigma3 = 1
-    lr_prototype = 0.1
-    lr_omega = 0.08
-    final_lr = 0.001
+    lr_prototype = 0.2
+    lr_omega = lr_prototype * 0.8
+    final_lr = 0.01
     # final_lr = 0.08
-    max_iteration = 1000
+    max_iteration = 80
+    zeropoint = 0.95
 
     MZE_final_sum = 0
     MAE_final_sum = 0
@@ -101,7 +102,7 @@ if final_run:
         gtol = tools.set_iteration(iter=max_iteration, initial_lr=lr_prototype, final_lr=final_lr)
         print('gtol', gtol)
 
-        train_list, test_list = tools.cross_validation(real_data, real_label, cross_validation)
+        train_list, test_list = tools.cross_validation_by_class(real_data, real_label, cross_validation)
 
         MZE_MAE_dic_list = []
         for idx in range(len(train_list)):
@@ -117,7 +118,7 @@ if final_run:
 
             aogmlvq = AOGmlvqModel(number_prototype, kernel_size=k, gtol=gtol, lr_prototype=lr_prototype,
                                    lr_omega=lr_omega, final_lr=final_lr,
-                                   sigma1=1, sigma2=sigma2, sigma3=1, n_interval=10)
+                                   sigma1=1, sigma2=sigma2, sigma3=1, n_interval=10, zeropoint=zeropoint)
             aogmlvq, epoch_MZE_MAE_dic = aogmlvq.fit(train_data, train_label, test_data, test_label)
             MZE_MAE_dic_list.append(epoch_MZE_MAE_dic)
 
@@ -131,7 +132,7 @@ if final_run:
 
             # 'iterations', 'nb_prototypes', 'k_size', 'sigma', 'MZE', 'MAE'
             df.loc[df.shape[0]] = np.array([key, number_prototype, k, sigma1, sigma2, sigma3, average_MZE, average_MAE,
-                                            lr_prototype, lr_omega, final_lr, max_iteration])
+                                            lr_prototype, lr_omega, final_lr, max_iteration, zeropoint])
             print('aogmlvq classification Epoch:', key)
             print('aogmlvq classification average MZE:', average_MZE)
             print('aogmlvq classification average MAE:', average_MAE)
@@ -149,11 +150,13 @@ if final_run:
 
     final_MZE = MZE_final_sum / times
     final_MAE = MAE_final_sum / times
+    print("final MZE:", final_MZE)
+    print("final MAE:", final_MAE)
     df.loc[df.shape[0]] = np.array([00,
         number_prototype, k, sigma1, sigma2, sigma3, final_MZE, final_MAE,
-        lr_prototype, lr_omega, final_lr, max_iteration])
+        lr_prototype, lr_omega, final_lr, max_iteration, zeropoint])
     df.to_csv(save_path)
-    print("final MAE:", final_MAE)
+
 
 else:
     # a version
