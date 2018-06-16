@@ -450,7 +450,9 @@ class AOGmlvqModel(GlvqModel):
 
             lr_pt, lr_om = self.learning_rate(i, self.zeropoint)
 
-        if trace_proto:
+        if trace_proto and self.cost_trace:
+            return epoch_MZE_MAE_dic, proto_history_list, cost_list
+        elif trace_proto:
             return epoch_MZE_MAE_dic, proto_history_list
         else:
             return epoch_MZE_MAE_dic
@@ -497,7 +499,11 @@ class AOGmlvqModel(GlvqModel):
         if len(np.unique(y)) == 1:
             raise ValueError("fitting " + type(
                 self).__name__ + " with only one class is not possible")
-        if trace_proto:
+
+        if self.cost_trace and trace_proto:
+            epoch_MZE_MAE_dic, proto_history_list, cost_list = self._optimize(x, y, random_state, test_x, test_y, trace_proto)
+            return self, epoch_MZE_MAE_dic, proto_history_list, cost_list
+        elif trace_proto:
             epoch_MZE_MAE_dic, proto_history_list = self._optimize(x, y, random_state, test_x, test_y, trace_proto)
             return self, epoch_MZE_MAE_dic, proto_history_list
         else:

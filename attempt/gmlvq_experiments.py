@@ -27,7 +27,7 @@ train_list, test_list = tools.cross_validation_by_class(real_data, real_label, c
 number_prototype_list = [5]
 
 final_run = True
-times = 100
+times = 20
 
 if final_run:
     # parameters

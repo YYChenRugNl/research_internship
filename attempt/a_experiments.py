@@ -79,7 +79,7 @@ iteration_list = [200]
 
 
 final_run = True
-times = 100
+times = 20
 
 if final_run:
     # parameters
@@ -92,8 +92,8 @@ if final_run:
     lr_omega = lr_prototype * 0.8
     final_lr = 0.01
     # final_lr = 0.08
-    max_iteration = 80
-    zeropoint = 0.95
+    max_iteration = 70
+    zeropoint = 0.85
 
     MZE_final_sum = 0
     MAE_final_sum = 0
