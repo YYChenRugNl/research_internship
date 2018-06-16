@@ -81,8 +81,8 @@ def test():
 
     # run_gmlvq = True
     # run_gmlvqol = True
-    run_ogmlvq = True
-    # run_aogmlvq = True
+    # run_ogmlvq = True
+    run_aogmlvq = True
 
     run_flag = True
     # run_flag = False
@@ -103,6 +103,7 @@ def test():
             kernel_size = 1
 
             MZE_MAE_dic_list = []
+            all_fold_cost = []
             ab_accuracy_sum = 0
             MAE_sum = 0
 
@@ -147,6 +148,7 @@ def test():
                     # ogmlvq, epoch_MZE_MAE_dic = ogmlvq.fit(train_data, train_label, test_data, test_label, trace_proto=False)
                     # plot2d(ogmlvq, test_data, test_label, proto_history_list, figure=1, prototype_count=number_prototype, title='p_ogmlvq', no_index=True)
                     MZE_MAE_dic_list.append(epoch_MZE_MAE_dic)
+                    all_fold_cost.append(cost_list)
                     key_list = MZE_MAE_dic_list[0].keys()
                     for key in key_list:
                         print(method, 'classification Epoch:', key)
@@ -157,18 +159,18 @@ def test():
                 if run_aogmlvq:
                     method = 'aogmlvq'
                     aogmlvq = AOGmlvqModel(number_prototype, kernel_size==kernel_size, gtol=gtol, lr_prototype=initial_lr, lr_omega=initial_lr*0.8,
-                                           final_lr=final_lr, sigma3=1, n_interval=10, max_iter=2500, sigma1=1, sigma2=sigma2, cost_trace=True
+                                           final_lr=final_lr, sigma3=1, n_interval=1, max_iter=2500, sigma1=1, sigma2=sigma2, cost_trace=True
                                            , zeropoint=zeropoint)
                     aogmlvq, epoch_MZE_MAE_dic, proto_history_list, cost_list = aogmlvq.fit(train_data, train_label, test_data, test_label, trace_proto=True)
                     # plot2d(aogmlvq, test_data, test_label,proto_history_list, figure=1, prototype_count=number_prototype,
                     #        title='a_ogmlvq', no_index=True)
                     MZE_MAE_dic_list.append(epoch_MZE_MAE_dic)
+                    all_fold_cost.append(cost_list)
                     key_list = MZE_MAE_dic_list[0].keys()
                     for key in key_list:
                         print(method, 'classification Epoch:', key)
                         # print(method, 'classification MZE:', epoch_MZE_MAE_dic[key][0])
                         print(method, 'classification MAE:', epoch_MZE_MAE_dic[key][1])
-                    simple_line_plot(list(key_list), cost_list, 'cost of a-OGMLVQ')
 
             if run_gmlvq:
                 print('gmlvq classification average MZE:', 1 - ab_accuracy_sum/len(toy_train_list))
@@ -184,6 +186,9 @@ def test():
                     print(method, 'classification average MZE:', average_MZE)
                     print(method, 'classification average MAE:', average_MAE)
                     print('number of prototypes:', number_prototype)
+
+                avg_cost_list = sum(np.array(each_fold) for each_fold in all_fold_cost)/len(all_fold_cost)
+                simple_line_plot(list(key_list), avg_cost_list, 'average cost of a-OGMLVQ')
         end = time.time()
         print(end - start, "s")
         plt.show()
