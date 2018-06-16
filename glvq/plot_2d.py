@@ -5,10 +5,11 @@ import matplotlib.pyplot as plt
 from sklearn.utils import validation
 
 
-def simple_line_plot(x, y, title):
-    f = plt.figure(1, figsize=(10, 10))
+def simple_line_plot(x, y, title, nb1, nb2, nb3):
+    subplot_nb = nb1*100+nb2*10+nb3
+    f = plt.figure(1, figsize=(7, 7))
     f.suptitle(title)
-    ax = f.add_subplot(111)
+    ax = f.add_subplot(subplot_nb)
     ax.plot(x, y)
     f.show()
     # plt.plot(x, y)

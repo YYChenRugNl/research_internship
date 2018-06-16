@@ -111,7 +111,8 @@ class AOGmlvqModel(GlvqModel):
         self.lr_prototype = lr_prototype
         self.lr_omega = lr_omega
         converge_from = max(lr_prototype, lr_omega)
-        self.max_iter = min(int(converge_from / (final_lr * gtol) + 1 - 1 / gtol), max_iter)
+        self.max_iter = int(converge_from / (final_lr * gtol) + 1 - 1 / gtol)
+        self.early_stop = max_iter
         self.sigma1 = sigma1
         self.sigma2 = sigma2
         self.sigma3 = sigma3
@@ -409,6 +410,7 @@ class AOGmlvqModel(GlvqModel):
             cost = self._costfunc(datapoint, label, self.kernel_size)
             sum_cost += cost
         max_epoch = self.max_iter
+        early_stop = self.early_stop
         cost_list = [sum_cost]
         lr_pt = self.lr_prototype
         lr_om = self.lr_omega
@@ -427,7 +429,7 @@ class AOGmlvqModel(GlvqModel):
                 self.omega_ /= math.sqrt(
                     np.sum(np.diag(self.omega_.T.dot(self.omega_))))
 
-            if (i+1) % self.n_interval == 0 or (i+1) == max_epoch:
+            if (i+1) % self.n_interval == 0 or (i+1) == early_stop:
                 score, ab_score, MAE = self.score(test_x, test_y)
                 epoch_MZE_MAE_dic[i+1] = [1-ab_score, MAE]
                 # print(self.sigma1, self.sigma2, self.sigma3)
@@ -445,10 +447,17 @@ class AOGmlvqModel(GlvqModel):
                         sum_cost += cost
 
                     cost_list.append(sum_cost)
-                    if epoch_index >= max_epoch - 1:
+                    if epoch_index >= early_stop - 1:
                         print(np.array(cost_list))
 
             lr_pt, lr_om = self.learning_rate(i, self.zeropoint)
+            if (i+1) == early_stop:
+                if trace_proto and self.cost_trace:
+                    return epoch_MZE_MAE_dic, proto_history_list, cost_list
+                elif trace_proto:
+                    return epoch_MZE_MAE_dic, proto_history_list
+                else:
+                    return epoch_MZE_MAE_dic
 
         if trace_proto and self.cost_trace:
             return epoch_MZE_MAE_dic, proto_history_list, cost_list

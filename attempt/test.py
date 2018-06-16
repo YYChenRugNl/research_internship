@@ -101,6 +101,7 @@ def test():
             sigma1 = 1
             sigma2 = 0.2
             kernel_size = 1
+            early_stop = 150
 
             MZE_MAE_dic_list = []
             all_fold_cost = []
@@ -159,7 +160,7 @@ def test():
                 if run_aogmlvq:
                     method = 'aogmlvq'
                     aogmlvq = AOGmlvqModel(number_prototype, kernel_size==kernel_size, gtol=gtol, lr_prototype=initial_lr, lr_omega=initial_lr*0.8,
-                                           final_lr=final_lr, sigma3=1, n_interval=1, max_iter=2500, sigma1=1, sigma2=sigma2, cost_trace=True
+                                           final_lr=final_lr, sigma3=1, n_interval=1, max_iter=early_stop, sigma1=1, sigma2=sigma2, cost_trace=True
                                            , zeropoint=zeropoint)
                     aogmlvq, epoch_MZE_MAE_dic, proto_history_list, cost_list = aogmlvq.fit(train_data, train_label, test_data, test_label, trace_proto=True)
                     # plot2d(aogmlvq, test_data, test_label,proto_history_list, figure=1, prototype_count=number_prototype,
@@ -188,7 +189,14 @@ def test():
                     print('number of prototypes:', number_prototype)
 
                 avg_cost_list = sum(np.array(each_fold) for each_fold in all_fold_cost)/len(all_fold_cost)
-                simple_line_plot(list(key_list), avg_cost_list, 'average cost of a-OGMLVQ')
+                simple_line_plot(list(key_list), avg_cost_list, '', 2, 2, 1)
+
+                avg_MZE_MAE = sum(np.array(list(dic.values())) for dic in MZE_MAE_dic_list)/len(MZE_MAE_dic_list)
+                avg_MZE = avg_MZE_MAE[:, 0]
+                avg_MAE = avg_MZE_MAE[:, 1]
+                simple_line_plot(list(key_list), avg_MZE, '', 2, 2, 2)
+                simple_line_plot(list(key_list), avg_MAE, 'average cost, MZE, and MAE of '+method, 2, 2, 3)
+
         end = time.time()
         print(end - start, "s")
         plt.show()
