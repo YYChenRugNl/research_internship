@@ -5,6 +5,17 @@ import matplotlib.pyplot as plt
 from sklearn.utils import validation
 
 
+def simple_line_plot(x, y, title, nb1, nb2, nb3):
+    subplot_nb = nb1*100+nb2*10+nb3
+    f = plt.figure(1, figsize=(7, 7))
+    f.suptitle(title)
+    ax = f.add_subplot(subplot_nb)
+    ax.plot(x, y)
+    f.show()
+    # plt.plot(x, y)
+    # plt.show()
+
+
 def plot2d(model, x, y, proto_history_list=[], figure=1, title="", prototype_count=-1, no_index=False):
     """
     Projects the input data to two dimensions and plots it. The projection is
