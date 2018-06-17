@@ -124,6 +124,11 @@ def test():
                     # ogmlvq, epoch_MZE_MAE_dic = ogmlvq.fit(train_data, train_label, test_data, test_label, trace_proto=False)
                     # plot2d(gmlvqol, test_data, test_label, proto_history_list, figure=1, prototype_count=number_prototype, title='online_gmlvq', no_index=True)
                     MZE_MAE_dic_list.append(epoch_MZE_MAE_dic)
+                    key_list = MZE_MAE_dic_list[0].keys()
+                    for key in key_list:
+                        print(method, 'classification Epoch:', key)
+                        # print(method, 'classification MZE:', epoch_MZE_MAE_dic[key][0])
+                        print(method, 'classification MAE:', epoch_MZE_MAE_dic[key][1])
 
                 if run_ogmlvq:
                     method = 'ogmlvq'
