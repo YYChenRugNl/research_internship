@@ -81,8 +81,8 @@ def test():
 
     # run_gmlvq = True
     # run_gmlvqol = True
-    # run_ogmlvq = True
-    run_aogmlvq = True
+    run_ogmlvq = True
+    # run_aogmlvq = True
 
     run_flag = True
     # run_flag = False
@@ -134,21 +134,24 @@ def test():
 
                 if run_gmlvqol:
                     method = 'gmlvq_online'
-                    gmlvqol = GmlvqOLModel(number_prototype, kernel_size=0, gtol=gtol, lr_prototype=initial_lr, lr_omega=initial_lr*0.8,
-                                         final_lr=final_lr, batch_flag=False, n_interval=20, max_iter=iter_number)
-                    gmlvqol, epoch_MZE_MAE_dic, proto_history_list = gmlvqol.fit(train_data, train_label, test_data,
+
+                    gmlvqol = GmlvqOLModel(number_prototype, kernel_size=0, gtol=0.005, lr_prototype=initial_lr, lr_omega=initial_lr*0.8,
+                                         final_lr=final_lr, batch_flag=False, n_interval=20, max_iter=2000, cost_trace=True)
+                    gmlvqol, epoch_MZE_MAE_dic, proto_history_list, cost_list = gmlvqol.fit(train_data, train_label, test_data,
                                                                                test_label, trace_proto=True)
                     # ogmlvq, epoch_MZE_MAE_dic = ogmlvq.fit(train_data, train_label, test_data, test_label, trace_proto=False)
                     # plot2d(gmlvqol, test_data, test_label, proto_history_list, figure=1, prototype_count=number_prototype, title='online_gmlvq', no_index=True)
                     MZE_MAE_dic_list.append(epoch_MZE_MAE_dic)
+                    all_fold_cost.append(cost_list)
                     key_list = MZE_MAE_dic_list[0].keys()
                     for key in key_list:
                         print(method, 'classification Epoch:', key)
-                        # print(method, 'classification MZE:', epoch_MZE_MAE_dic[key][0])
+                        print(method, 'classification MZE:', epoch_MZE_MAE_dic[key][0])
                         print(method, 'classification MAE:', epoch_MZE_MAE_dic[key][1])
+                    simple_line_plot(list(key_list), cost_list,'cost of GMLVQOL', 1, 1, 1, 'cost', 'Cost of GMLVQ', set_y=True)
 
                 if run_ogmlvq:
-                    method = 'ogmlvq'
+                    method = 'p-OGMLVQ'
                     ogmlvq = OGmlvqModel(number_prototype, kernel_size=kernel_size, gtol=gtol, lr_prototype=initial_lr, lr_omega=initial_lr*0.8,
                                          final_lr=final_lr, batch_flag=False, n_interval=n_interval, max_iter=5000, sigma=sigma, sigma1=sigma1, cost_trace=True)
                     ogmlvq, epoch_MZE_MAE_dic, proto_history_list, cost_list = ogmlvq.fit(train_data, train_label, test_data, test_label, trace_proto=True)
@@ -161,7 +164,7 @@ def test():
                         print(method, 'classification Epoch:', key)
                         print(method, 'classification MZE:', epoch_MZE_MAE_dic[key][0])
                         print(method, 'classification MAE:', epoch_MZE_MAE_dic[key][1])
-                    simple_line_plot(list(key_list), cost_list, 'cost of p-OGMLVQ')
+                    simple_line_plot(list(key_list), cost_list, 'cost of p-OGMLVQ', 1, 1, 1, 'cost', 'Cost of p-OGMLVQ', set_y=True)
 
                 if run_aogmlvq:
                     method = 'aogmlvq'
@@ -195,13 +198,14 @@ def test():
                     print('number of prototypes:', number_prototype)
 
                 avg_cost_list = sum(np.array(each_fold) for each_fold in all_fold_cost)/len(all_fold_cost)
-                simple_line_plot(list(key_list), avg_cost_list, '', 2, 2, 1)
+                simple_line_plot(list(key_list), list(avg_cost_list), 'Average cost of '+method,
+                                 1, 1, 1, 'cost', 'Average cost of '+method)
 
                 avg_MZE_MAE = sum(np.array(list(dic.values())) for dic in MZE_MAE_dic_list)/len(MZE_MAE_dic_list)
                 avg_MZE = avg_MZE_MAE[:, 0]
                 avg_MAE = avg_MZE_MAE[:, 1]
-                simple_line_plot(list(key_list), avg_MZE, '', 2, 2, 2)
-                simple_line_plot(list(key_list), avg_MAE, 'average cost, MZE, and MAE of '+method, 2, 2, 3)
+                simple_line_plot(list(key_list), avg_MZE, 'Average MZE of '+method, 1, 1, 1, 'MZE', 'Average MZE of '+method, set_y=True)
+                simple_line_plot(list(key_list), avg_MAE, 'Average MAE of '+method, 1, 1, 1, 'MAE', 'Average MAE of '+method, set_y=True)
 
         end = time.time()
         print(end - start, "s")

@@ -28,14 +28,14 @@ train_list, test_list = tools.cross_validation_by_class(real_data, real_label, c
 number_prototype_list = [5]
 
 final_run = True
-times = 20
+times = 5
 
 if final_run:
     # parameters
     number_prototype = 5
-    iter_number = 350
+    iter_number = 50
     initial_lr = 0.2
-    final_lr = 0.02
+    final_lr = 0.1
     zeropoint = 0.8
     sigma = 0.5
     sigma1 = 1
@@ -46,6 +46,7 @@ if final_run:
 
 
     all_fold_cost = []
+    TOTAL_LIST = []
     ab_accuracy_sum = 0
     MAE_sum = 0
 
@@ -76,6 +77,7 @@ if final_run:
             # plot2d(gmlvqol, test_data, test_label, proto_history_list, figure=1, prototype_count=number_prototype, title='online_gmlvq', no_index=True)
             MZE_MAE_dic_list.append(epoch_MZE_MAE_dic)
 
+        TOTAL_LIST.append(MZE_MAE_dic_list)
         key_list = list(MZE_MAE_dic_list[0].keys())
         key_length = len(key_list)
         for key_index in range(key_length):
@@ -99,11 +101,27 @@ if final_run:
         end = time.time()
         print(end - start, "s")
 
-    final_MZE = MZE_final_sum / times
-    final_MAE = MAE_final_sum / times
-    print("final MZE:", final_MZE)
-    print("final MAE:", final_MAE)
-    df.loc[df.shape[0]] = np.array(['final', number_prototype, final_MZE, final_MAE])
+    mze_list = []
+    mae_list = []
+    for MZE_MAE_dic_list in TOTAL_LIST:
+        avg_MZE_MAE = sum(np.array(list(dic.values())) for dic in MZE_MAE_dic_list) / len(MZE_MAE_dic_list)
+        avg_MZE = avg_MZE_MAE[:, 0]
+        avg_MAE = avg_MZE_MAE[:, 1]
+        mze_list.append(avg_MZE)
+        mae_list.append(avg_MAE)
+
+    # final_MZE = MZE_final_sum / times
+    # final_MAE = MAE_final_sum / times
+    final_MZE_epoch = sum(np.array(mze_list)) / len(mze_list)
+    final_MAE_epoch = sum(np.array(mae_list)) / len(mae_list)
+    print("final MZE:", final_MZE_epoch)
+    print("final MAE:", final_MAE_epoch)
+    simple_line_plot(key_list, final_MAE_epoch, 'MAE of each epoch', 1, 1, 1)
+    for df_idx in range(len(final_MAE_epoch)):
+        epoch = key_list[df_idx]
+        final_MZE = final_MZE_epoch[df_idx]
+        final_MAE = final_MAE_epoch[df_idx]
+        df.loc[df.shape[0]] = np.array(['final', number_prototype, final_MZE, final_MAE])
     df.to_csv(save_path)
 
 else:

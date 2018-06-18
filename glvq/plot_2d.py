@@ -5,12 +5,18 @@ import matplotlib.pyplot as plt
 from sklearn.utils import validation
 
 
-def simple_line_plot(x, y, title, nb1, nb2, nb3):
+def simple_line_plot(x, y, title, nb1, nb2, nb3, measure, ylabel, xlabel='Training epochs', set_y=False):
     subplot_nb = nb1*100+nb2*10+nb3
     f = plt.figure(1, figsize=(7, 7))
-    f.suptitle(title)
+    # f.suptitle(title)
     ax = f.add_subplot(subplot_nb)
+    if set_y and measure == 'MZE':
+        ax.set_ylim([0.4, 1])
+    elif set_y and measure == 'MAE':
+        ax.set_ylim([0.8, 2])
     ax.plot(x, y)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
     f.show()
     # plt.plot(x, y)
     # plt.show()
