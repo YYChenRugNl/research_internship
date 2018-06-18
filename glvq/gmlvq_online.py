@@ -229,7 +229,6 @@ class GmlvqOLModel(GlvqModel):
         w_plus, w_minus, max_error_cls, D = self.find_prototype(data_point, label, k_size)
 
         sum_cost = 0
-        cost_count = 0
         while w_plus and w_minus:
             min_value = np.inf
             min_ind_correct = 0
@@ -252,14 +251,15 @@ class GmlvqOLModel(GlvqModel):
                 index += 1
             closest_wro_p = w_minus.pop(min_ind_wrong)
 
-            pt_pair = [closest_cor_p, closest_wro_p]
-            alpha_distance_plus, alpha_plus = self.alpha_dist_plus(pt_pair, label)
-            alpha_distance_minus, alpha_minus = self.alpha_dist_minus(pt_pair, label, max_error_cls, D)
-            mu = (alpha_distance_plus - alpha_distance_minus) / (alpha_distance_plus + alpha_distance_minus)
-            sum_cost += mu
-            cost_count += 1
+            pid_correct = closest_cor_p[0]
+            pid_wrong = closest_wro_p[0]
+            distance_correct = math.sqrt(closest_cor_p[1])
+            distance_wrong = math.sqrt(closest_wro_p[1])\
 
-        return sum_cost, cost_count
+            mu = (distance_correct - distance_wrong)/ (distance_correct + distance_wrong)
+            sum_cost += mu
+
+        return sum_cost
 
     def _optimize(self, x, y, random_state, test_x, test_y, trace_proto):
         if not isinstance(self.regularization, float) or self.regularization < 0:
@@ -321,7 +321,7 @@ class GmlvqOLModel(GlvqModel):
         # start the algorithm
         epoch_index = 0
         max_epoch = self.max_iter
-        cost_list = np.zeros([max_epoch, 1])
+        cost_list = []
         lr_pt = self.lr_prototype
         lr_om = self.lr_omega
         epoch_MZE_MAE_dic = {}
@@ -352,32 +352,33 @@ class GmlvqOLModel(GlvqModel):
                     W_plus, W_minus, max_error_cls, D = self.find_prototype(datapoint, label, self.kernel_size)
                     self.update_prot_and_omega(W_plus, W_minus, label, max_error_cls, datapoint, lr_pt, lr_om, D)
 
-
             if (i+1) % self.n_interval == 0 or (i+1) == max_epoch:
                 score, ab_score, MAE = self.score(test_x, test_y)
                 epoch_MZE_MAE_dic[i+1] = [1-ab_score, MAE]
                 if trace_proto:
                     proto_history_list.append(self.w_.copy())
 
-            # calculate and print costs of all epochs
-            if self.cost_trace:
-                sum_cost = 0
-                cost_count = 0
-                for index in range(len(x)):
-                    datapoint = np.array([x[index]])
-                    label = y[index]
-                    cost, count = self._costfunc(datapoint, label, self.kernel_size)
-                    sum_cost += cost
-                    cost_count += count
+                # calculate and print costs of all epochs
+                if self.cost_trace:
+                    sum_cost = 0
+                    cost_count = 0
+                    for index in range(len(x)):
+                        datapoint = np.array([x[index]])
+                        label = y[index]
+                        cost = self._costfunc(datapoint, label, self.kernel_size)
+                        sum_cost += cost
+                        # cost_count += count
 
-                cost_list[epoch_index] = sum_cost/cost_count
-                epoch_index += 1
-                if epoch_index >= max_epoch:
-                    print(cost_list)
+                    cost_list.append(sum_cost)
+                    epoch_index += 1
+                    if epoch_index >= max_epoch:
+                        print(cost_list)
 
-            lr_pt = self.lr_prototype / (1 + self.gtol * (epoch_index - 1))
-            lr_om = self.lr_omega / (1 + self.gtol * (epoch_index - 1))
-        if trace_proto:
+            lr_pt = self.lr_prototype / (1 + self.gtol * (i - 1))
+            lr_om = self.lr_omega / (1 + self.gtol * (i - 1))
+        if trace_proto and self.cost_trace:
+            return epoch_MZE_MAE_dic, proto_history_list, cost_list
+        elif trace_proto:
             return epoch_MZE_MAE_dic, proto_history_list
         else:
             return epoch_MZE_MAE_dic
@@ -417,7 +418,10 @@ class GmlvqOLModel(GlvqModel):
         if len(np.unique(y)) == 1:
             raise ValueError("fitting " + type(
                 self).__name__ + " with only one class is not possible")
-        if trace_proto:
+        if self.cost_trace and trace_proto:
+            epoch_MZE_MAE_dic, proto_history_list, cost_list = self._optimize(x, y, random_state, test_x, test_y, trace_proto)
+            return self, epoch_MZE_MAE_dic, proto_history_list, cost_list
+        elif trace_proto:
             epoch_MZE_MAE_dic, proto_history_list = self._optimize(x, y, random_state, test_x, test_y, trace_proto)
             return self, epoch_MZE_MAE_dic, proto_history_list
         else:

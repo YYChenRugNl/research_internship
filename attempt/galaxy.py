@@ -1,9 +1,11 @@
 import pandas as pd
+
 # import h5py
 # import tables
 
 filename1 = 'Magphys_GZ_bulge_dominance_and_spiralwindings_20h42_14June2018.h5'
 filename2 = 'GFS_GZ_bulge_dominance_and_spiralwindings_20h41_14June2018.h5'
+
 
 with pd.HDFStore(filename2) as store:
     df = store['df']
