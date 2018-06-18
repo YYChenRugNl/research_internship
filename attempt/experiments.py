@@ -51,7 +51,7 @@ sigma1_list = [0.7, 1, 1.5]
 # lr_prototype = 0.1
 # lr_omega = 0.08
 # final_lr = 0.01
-max_iteration = 1000
+max_iteration = 800
 lr_prototype_list = [0.07, 0.1, 0.2]
 lr_omega_list = [0.03, 0.08, 0.1]
 final_lr_list = [0.0007, 0.001, 0.002]
@@ -61,18 +61,19 @@ zeropoint_list = [0.9, 0.95]
 # lr_omega_list = [0.08]
 # final_lr_list = [0.005]
 
-final_run = False
-times = 30
+final_run = True
+times = 5
 
 if final_run:
     # parameters
     number_prototype = 5
-    k = 0
-    sigma = 0.5
-    sigma1 = 0.7
-    lr_prototype = 0.1
-    lr_omega = 0.08
-    final_lr = 0.01
+    k = 1
+    sigma = 0.3
+    sigma1 = 1
+    lr_prototype = 0.07
+    lr_omega = 0.03
+    final_lr = 0.0007
+    zeropoint = 0.95
 
     MZE_final_sum = 0
     MAE_final_sum = 0
@@ -92,7 +93,8 @@ if final_run:
 
             ogmlvq = OGmlvqModel(number_prototype, kernel_size=k, gtol=gtol,
                                  lr_prototype=lr_prototype, lr_omega=lr_omega, final_lr=final_lr,
-                                 batch_flag=False, sigma=sigma, n_interval=10, sigma1=sigma1)
+                                 batch_flag=False, sigma=sigma, n_interval=10, sigma1=sigma1,
+                                                     zeropoint=zeropoint)
             ogmlvq, epoch_MZE_MAE_dic = ogmlvq.fit(train_data, train_label, test_data, test_label)
             MZE_MAE_dic_list.append(epoch_MZE_MAE_dic)
             # plot2d(ogmlvq, test_data, test_label, 1, 'ogmlvq', no_index=True)
@@ -111,7 +113,7 @@ if final_run:
             # 'iterations', 'nb_prototypes', 'k_size', 'sigma', 'MZE', 'MAE'
             df.loc[df.shape[0]] = np.array(
                 [key, number_prototype, k, sigma, sigma1, average_MZE, average_MAE,
-                 lr_prototype, lr_omega, final_lr, max_iteration])
+                 lr_prototype, lr_omega, final_lr, max_iteration, zeropoint])
 
             print('ogmlvq classification Epoch:', key)
             print('ogmlvq classification average MZE:', average_MZE)
@@ -130,8 +132,8 @@ if final_run:
     final_MZE = MZE_final_sum/times
     final_MAE = MAE_final_sum/times
     df.loc[df.shape[0]] = np.array(
-        [00, number_prototype, k, sigma, sigma1, final_MZE, final_MAE,
-         lr_prototype, lr_omega, final_lr, max_iteration])
+        [00, number_prototype, k, sigma, sigma1, average_MZE, average_MAE,
+         lr_prototype, lr_omega, final_lr, max_iteration, zeropoint])
     df.to_csv(save_path)
     print("final MAE:", final_MAE)
 

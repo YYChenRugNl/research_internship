@@ -40,7 +40,7 @@ class CustomTool():
         return self.normalize_attr(attr), self.relabel_data(labels[:, 0], 10)
 
     def read_from_medical_data(self, datapath):
-        datapath = 'C:/Users/Andrew X/Documents/GitHub/research_internship/hormone_data_ordinal.csv'
+        # datapath = 'C:/Users/Andrew X/Documents/GitHub/research_internship/hormone_data_ordinal.csv'
         my_data = genfromtxt(datapath, delimiter=',', skip_header=1)
         arr_length = len(my_data[0, :])
         # print(arr_length)
