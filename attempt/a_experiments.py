@@ -5,7 +5,7 @@ import pandas as pd
 import csv
 import time
 
-from glvq import AOGmlvqModel, OGmlvqModel, plot2d, CustomTool, GmlvqModel
+from glvq import AOGmlvqModel, OGmlvqModel, simple_line_plot, plot2d, CustomTool, GmlvqModel
 
 raw_data = {'iterations': [],
             'nb_prototypes': [],
@@ -79,7 +79,7 @@ iteration_list = [200]
 
 
 final_run = True
-times = 20
+times = 30
 
 if final_run:
     # parameters
@@ -88,15 +88,19 @@ if final_run:
     sigma1 = 1
     sigma2 = 0.2
     sigma3 = 1
-    lr_prototype = 0.2
+    lr_prototype = 0.005
     lr_omega = lr_prototype * 0.8
-    final_lr = 0.01
+    final_lr = 0.001
     # final_lr = 0.08
-    max_iteration = 70
-    zeropoint = 0.85
+    max_iteration = 500
+    zeropoint = 1
+    n_interval = 1
+    early_stop = 500
 
     MZE_final_sum = 0
     MAE_final_sum = 0
+    TOTAL_LIST = []
+    key_list = []
     for n_run in range(times):
         start = time.time()
         gtol = tools.set_iteration(iter=max_iteration, initial_lr=lr_prototype, final_lr=final_lr)
@@ -117,11 +121,12 @@ if final_run:
             # accuracy += gmlvq.score(test_data, test_label)
 
             aogmlvq = AOGmlvqModel(number_prototype, kernel_size=k, gtol=gtol, lr_prototype=lr_prototype,
-                                   lr_omega=lr_omega, final_lr=final_lr,
-                                   sigma1=1, sigma2=sigma2, sigma3=1, n_interval=10, zeropoint=zeropoint)
+                                   lr_omega=lr_omega, final_lr=final_lr, max_iter=early_stop,
+                                   sigma1=1, sigma2=sigma2, sigma3=1, n_interval=n_interval, zeropoint=zeropoint)
             aogmlvq, epoch_MZE_MAE_dic = aogmlvq.fit(train_data, train_label, test_data, test_label)
             MZE_MAE_dic_list.append(epoch_MZE_MAE_dic)
 
+        TOTAL_LIST.append(MZE_MAE_dic_list)
         key_list = list(MZE_MAE_dic_list[0].keys())
         key_length = len(key_list)
         for key_index in range(key_length):
@@ -148,13 +153,30 @@ if final_run:
         print(end - start, "s")
         plt.show()
 
-    final_MZE = MZE_final_sum / times
-    final_MAE = MAE_final_sum / times
-    print("final MZE:", final_MZE)
-    print("final MAE:", final_MAE)
-    df.loc[df.shape[0]] = np.array([00,
-        number_prototype, k, sigma1, sigma2, sigma3, final_MZE, final_MAE,
-        lr_prototype, lr_omega, final_lr, max_iteration, zeropoint])
+    mze_list = []
+    mae_list = []
+    for MZE_MAE_dic_list in TOTAL_LIST:
+        avg_MZE_MAE = sum(np.array(list(dic.values())) for dic in MZE_MAE_dic_list) / len(MZE_MAE_dic_list)
+        avg_MZE = avg_MZE_MAE[:, 0]
+        avg_MAE = avg_MZE_MAE[:, 1]
+        mze_list.append(avg_MZE)
+        mae_list.append(avg_MAE)
+
+    final_MZE_epoch = sum(np.array(mze_list))/len(mze_list)
+    final_MAE_epoch = sum(np.array(mae_list))/len(mae_list)
+
+    # final_MZE = MZE_final_sum / times
+    # final_MAE = MAE_final_sum / times
+    print("final MZE:", final_MZE_epoch)
+    print("final MAE:", final_MAE_epoch)
+    simple_line_plot(key_list, final_MAE_epoch, 'MAE of each epoch', 1, 1, 1)
+    for df_idx in range(len(final_MAE_epoch)):
+        epoch = key_list[df_idx]
+        final_MZE = final_MZE_epoch[df_idx]
+        final_MAE = final_MAE_epoch[df_idx]
+        df.loc[df.shape[0]] = np.array([epoch,
+            number_prototype, k, sigma1, sigma2, sigma3, final_MZE, final_MAE,
+            lr_prototype, lr_omega, final_lr, max_iteration, zeropoint])
     df.to_csv(save_path)
 
 

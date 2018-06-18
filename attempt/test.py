@@ -93,15 +93,16 @@ def test():
         start = time.time()
         # for number_prototype in [1, 2, 3, 4, 5, 6, 7]:
         for number_prototype in [5]:
-            iter_number = 80
-            initial_lr = 0.2
-            final_lr = 0.02
+            iter_number = 5000
+            initial_lr = 0.005
+            final_lr = 0.00001
             zeropoint = 0.95
             sigma = 0.5
             sigma1 = 1
             sigma2 = 0.2
             kernel_size = 1
-            early_stop = 150
+            n_interval = 5
+            early_stop = 5000
 
             MZE_MAE_dic_list = []
             all_fold_cost = []
@@ -133,8 +134,8 @@ def test():
 
                 if run_gmlvqol:
                     method = 'gmlvq_online'
-                    gmlvqol = GmlvqOLModel(number_prototype, kernel_size=0, gtol=0.05, lr_prototype=initial_lr, lr_omega=initial_lr*0.8,
-                                         final_lr=final_lr, batch_flag=False, n_interval=20, max_iter=2000)
+                    gmlvqol = GmlvqOLModel(number_prototype, kernel_size=0, gtol=gtol, lr_prototype=initial_lr, lr_omega=initial_lr*0.8,
+                                         final_lr=final_lr, batch_flag=False, n_interval=20, max_iter=iter_number)
                     gmlvqol, epoch_MZE_MAE_dic, proto_history_list = gmlvqol.fit(train_data, train_label, test_data,
                                                                                test_label, trace_proto=True)
                     # ogmlvq, epoch_MZE_MAE_dic = ogmlvq.fit(train_data, train_label, test_data, test_label, trace_proto=False)
@@ -144,7 +145,7 @@ def test():
                 if run_ogmlvq:
                     method = 'ogmlvq'
                     ogmlvq = OGmlvqModel(number_prototype, kernel_size=kernel_size, gtol=gtol, lr_prototype=initial_lr, lr_omega=initial_lr*0.8,
-                                         final_lr=final_lr, batch_flag=False, n_interval=10, max_iter=5000, sigma=sigma, sigma1=sigma1, cost_trace=True)
+                                         final_lr=final_lr, batch_flag=False, n_interval=n_interval, max_iter=5000, sigma=sigma, sigma1=sigma1, cost_trace=True)
                     ogmlvq, epoch_MZE_MAE_dic, proto_history_list, cost_list = ogmlvq.fit(train_data, train_label, test_data, test_label, trace_proto=True)
                     # ogmlvq, epoch_MZE_MAE_dic = ogmlvq.fit(train_data, train_label, test_data, test_label, trace_proto=False)
                     # plot2d(ogmlvq, test_data, test_label, proto_history_list, figure=1, prototype_count=number_prototype, title='p_ogmlvq', no_index=True)
@@ -160,7 +161,7 @@ def test():
                 if run_aogmlvq:
                     method = 'aogmlvq'
                     aogmlvq = AOGmlvqModel(number_prototype, kernel_size==kernel_size, gtol=gtol, lr_prototype=initial_lr, lr_omega=initial_lr*0.8,
-                                           final_lr=final_lr, sigma3=1, n_interval=1, max_iter=early_stop, sigma1=1, sigma2=sigma2, cost_trace=True
+                                           final_lr=final_lr, sigma3=1, n_interval=n_interval, max_iter=early_stop, sigma1=1, sigma2=sigma2, cost_trace=True
                                            , zeropoint=zeropoint)
                     aogmlvq, epoch_MZE_MAE_dic, proto_history_list, cost_list = aogmlvq.fit(train_data, train_label, test_data, test_label, trace_proto=True)
                     # plot2d(aogmlvq, test_data, test_label,proto_history_list, figure=1, prototype_count=number_prototype,

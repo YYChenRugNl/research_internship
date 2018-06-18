@@ -5,13 +5,14 @@ import pandas as pd
 import csv
 import time
 
-from glvq import AOGmlvqModel, OGmlvqModel, plot2d, CustomTool, GmlvqModel
+from glvq import GmlvqOLModel, AOGmlvqModel, OGmlvqModel, simple_line_plot, plot2d, CustomTool, GmlvqModel
 
-raw_data = {'nb_prototypes': [],
+raw_data = {'epoch': [],
+            'nb_prototypes': [],
             'MZE': [],
             'MAE': []}
-df = pd.DataFrame(raw_data, columns=['nb_prototypes', 'MZE', 'MAE'])
-save_path = '../gmlvq_results/gmlvq_results_' + str(int(time.time())) + '.csv'
+df = pd.DataFrame(raw_data, columns=['epoch', 'nb_prototypes', 'MZE', 'MAE'])
+save_path = '../gmlvq_results/gmlvqol_results_' + str(int(time.time())) + '.csv'
 
 datapath = 'C:/Users/Yukki/Desktop/RIntern/data_ordinal.csv'
 # datapath = '../benchmark_datasets/Machine-Cpu/machine.data'
@@ -32,6 +33,21 @@ times = 20
 if final_run:
     # parameters
     number_prototype = 5
+    iter_number = 350
+    initial_lr = 0.2
+    final_lr = 0.02
+    zeropoint = 0.8
+    sigma = 0.5
+    sigma1 = 1
+    sigma2 = 0.2
+    kernel_size = 1
+    n_interval = 5
+    early_stop = 185
+
+
+    all_fold_cost = []
+    ab_accuracy_sum = 0
+    MAE_sum = 0
 
     MZE_final_sum = 0
     MAE_final_sum = 0
@@ -39,32 +55,45 @@ if final_run:
         start = time.time()
 
         train_list, test_list = tools.cross_validation_by_class(real_data, real_label, cross_validation)
+        gtol = tools.set_iteration(iter=iter_number, initial_lr=initial_lr, final_lr=final_lr)
+        print('gtol', gtol)
 
         MAE_sum = 0
         MZE_sum = 0
+        MZE_MAE_dic_list = []
         for idx in range(len(train_list)):
             train_data = train_list[idx][0]
             train_label = train_list[idx][1]
             test_data = test_list[idx][0]
             test_label = test_list[idx][1]
 
-            gmlvq = GmlvqModel(number_prototype)
-            gmlvq.fit(train_data, train_label)
-            # plot2d(gmlvq, test_data, test_label, 1, 'gmlvq')
-            score, MAE = gmlvq.score(test_data, test_label)
-            MAE_sum += MAE
-            MZE_sum += 1 - score
+            gmlvqol = GmlvqOLModel(number_prototype, kernel_size=0, gtol=gtol, lr_prototype=initial_lr,
+                                   lr_omega=initial_lr * 0.8,
+                                   final_lr=final_lr, batch_flag=False, n_interval=20, max_iter=iter_number)
+            gmlvqol, epoch_MZE_MAE_dic, proto_history_list = gmlvqol.fit(train_data, train_label, test_data,
+                                                                         test_label, trace_proto=True)
+            # ogmlvq, epoch_MZE_MAE_dic = ogmlvq.fit(train_data, train_label, test_data, test_label, trace_proto=False)
+            # plot2d(gmlvqol, test_data, test_label, proto_history_list, figure=1, prototype_count=number_prototype, title='online_gmlvq', no_index=True)
+            MZE_MAE_dic_list.append(epoch_MZE_MAE_dic)
 
-        average_MZE = MZE_sum/len(train_list)
-        average_MAE = MAE_sum/len(train_list)
-        MZE_final_sum += average_MZE
-        MAE_final_sum += average_MAE
-        print('gmlvq classification average MZE:', average_MZE)
-        print('gmlvq classification average MAE:', average_MAE)
-        print('number of prototypes:', number_prototype)
+        key_list = list(MZE_MAE_dic_list[0].keys())
+        key_length = len(key_list)
+        for key_index in range(key_length):
+            key = key_list[key_index]
+            average_MZE_MAE = sum(np.array(dic[key]) for dic in MZE_MAE_dic_list) / len(MZE_MAE_dic_list)
+            average_MZE = average_MZE_MAE[0]
+            average_MAE = average_MZE_MAE[1]
 
-        # 'iterations', 'nb_prototypes', 'k_size', 'sigma', 'average_MZE', 'average_MAE'
-        df.loc[df.shape[0]] = np.array([number_prototype, average_MZE, average_MAE])
+            # 'iterations', 'nb_prototypes', 'k_size', 'sigma', 'MZE', 'MAE'
+            df.loc[df.shape[0]] = np.array([key, number_prototype, average_MZE, average_MAE])
+            print('aogmlvq classification Epoch:', key)
+            print('aogmlvq classification average MZE:', average_MZE)
+            print('aogmlvq classification average MAE:', average_MAE)
+            print('number of prototypes:', number_prototype)
+            if key_index == key_length - 1:
+                MZE_final_sum += average_MZE
+                MAE_final_sum += average_MAE
+
         df.to_csv(save_path)
 
         end = time.time()
@@ -74,7 +103,7 @@ if final_run:
     final_MAE = MAE_final_sum / times
     print("final MZE:", final_MZE)
     print("final MAE:", final_MAE)
-    df.loc[df.shape[0]] = np.array(['final', final_MZE, final_MAE])
+    df.loc[df.shape[0]] = np.array(['final', number_prototype, final_MZE, final_MAE])
     df.to_csv(save_path)
 
 else:
@@ -89,14 +118,15 @@ else:
             test_data = test_list[idx][0]
             test_label = test_list[idx][1]
 
-            gmlvq = GmlvqModel(number_prototype)
-            gmlvq.fit(train_data, train_label)
-            # plot2d(gmlvq, test_data, test_label, 1, 'gmlvq')
-            score, MAE = gmlvq.score(test_data, test_label)
-            print('gmlvq classification MZE:', 1-score)
-            print('gmlvq classification MAE:', MAE)
-            accuracy += score
-            MAE_SUM += MAE
+            gmlvqol = GmlvqOLModel(number_prototype, kernel_size=0, gtol=gtol, lr_prototype=initial_lr,
+                                   lr_omega=initial_lr * 0.8,
+                                   final_lr=final_lr, batch_flag=False, n_interval=20, max_iter=iter_number)
+            gmlvqol, epoch_MZE_MAE_dic, proto_history_list = gmlvqol.fit(train_data, train_label, test_data,
+                                                                         test_label, trace_proto=True)
+            # ogmlvq, epoch_MZE_MAE_dic = ogmlvq.fit(train_data, train_label, test_data, test_label, trace_proto=False)
+            # plot2d(gmlvqol, test_data, test_label, proto_history_list, figure=1, prototype_count=number_prototype, title='online_gmlvq', no_index=True)
+            MZE_MAE_dic_list.append(epoch_MZE_MAE_dic)
+
         print('average_accuracy:', 1 - accuracy/len(test_list))
         print('average_MAE:', MAE_SUM/len(test_list))
 
